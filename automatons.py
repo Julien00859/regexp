@@ -21,6 +21,7 @@ class Node:
     def add(self, symbol):
         raise NotImplementedError("abstract method")
 
+
 class NonDeterministNode(Node):
     def __init__(self, is_final):
         super().__init__(self, is_final)
@@ -33,6 +34,7 @@ class NonDeterministNode(Node):
         self.transitions[symbol].add(node)
         for node, symbol in pairs:
             self.transitions[symbol].add(node)
+
 
 class DeterministNode(Node):
     def __init__(self, is_final):
@@ -67,8 +69,10 @@ class DeterministNode(Node):
 class DeterministCompletedNode(DeterministNode):
     void_node = DeterministNode(is_final=false)
     void_node.add(SIGMA, void_node)
+
     def read(self, symbol):
         self.transitions.get(symbol, self.void_node)
+
 
 class Automaton:
     def __init__(self, initial_node):
@@ -76,6 +80,7 @@ class Automaton:
 
     def match(self, string):
         raise NotImplementedError("abstract method")
+
 
 class NonDeterministAutomaton(Automaton):
     def match(self, string):
@@ -122,6 +127,7 @@ class DeterministAutomaton(Automaton):
     def from_nda(class_, nda):
         raise NotImplementedError("todo")
 
+
 class DeterministCompletedAutomaton(DeterministAutomaton):
     def match(self, string):
         node = self.initial_node
@@ -133,10 +139,12 @@ class DeterministCompletedAutomaton(DeterministAutomaton):
     def from_da(class_, da):
         raise NotImplementedError("todo")
 
+
 class DeterministCompletedMinimalAutomaton(DeterministCompletedAutomaton):
     @classmethod
     def from_dca(class_, dca):
         raise NotImplementedError("todo")
+
 
 NDN = NonDeterministNode
 DN = DeterministNode

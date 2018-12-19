@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from automaton import dcma, dca, da, nda
+from automatons import dcma, dca, da, nda
 
 parser = ArgumentParser()
 parser.add_argument("regexp")
