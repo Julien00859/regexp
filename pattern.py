@@ -1,11 +1,10 @@
 from itertools import tee, zip_longest
 from automatons import NDN, NDA, SIGMA
 
-def ParsingError(Exception):
-    tmpt = "{}. At index {}: {}"
-    def __init__(self, message, index, pattern):
+class ParsingError(Exception):
+    def __init__(self, message, pattern, index):
         substr = pattern[max(index-3, 0):min(index+3, len(pattern))]
-        super(Exception).__init__(self, tmpt.format(message, index, substr))
+        super().__init__("{}. At index {}: {}".format(message, index, substr))
 
 
 def parse(pattern):
@@ -16,7 +15,7 @@ def parse(pattern):
     next(p2)
     iteratee = zip_longest(p1, p2)
 
-    groups(start, end, iteratee)
+    groups(start, end, iteratee, 0, pattern)
     try:
         next(iteratee)
     except StopIteration:
@@ -26,7 +25,7 @@ def parse(pattern):
     return NDA(start)
 
 
-def groups(start, end, iteratee):
+def groups(start, end, iteratee, start_index, pattern):
     skip = False
     escape = False
     kleene_start = NDN()
@@ -34,7 +33,8 @@ def groups(start, end, iteratee):
     last_node = kleene_start
     last_nodes = []
 
-    for char, next_char in iteratee:
+    for delta_index, (char, next_char) in enumerate(iteratee):
+        index = start_index + delta_index
         if escape:
             if next_char == "*":
                 start_in = NDN()
@@ -46,7 +46,7 @@ def groups(start, end, iteratee):
 
             escape = False
 
-        if char == "*" and skip:
+        elif char == "*" and skip:
             skip = False
         elif char == "*":
             raise ParsingError("Invalid Kleene", pattern, index)
@@ -56,16 +56,16 @@ def groups(start, end, iteratee):
 
         elif char == "(":
             sub_end = NDN()
-            skip = groups(last_node, sub_end, iteratee)
+            skip, start_index = groups(last_node, sub_end, iteratee, index + 1, pattern)
             last_node = sub_end
 
         elif char == ")":
             if next_char == "*":
                 kleene(start, kleene_start, last_node, *last_nodes).add("", end)
-                return True
+                return True, index
             else:
                 last_node.add("", end)
-                return False
+                return False, index
 
         elif char == "|":
             last_nodes.append(last_node)
@@ -82,7 +82,10 @@ def groups(start, end, iteratee):
             else:
                 last_node = concat(last_node, char_)
 
+    if escape:
+        raise ParsingError("Invalid escape sequence", pattern, index)
     last_node.add("", end)
+    return skip, index
 
 
 def kleene(start, start_in, *ends_in):
