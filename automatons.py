@@ -30,7 +30,7 @@ class NonDeterministNode(Node):
         self.transitions = defaultdict(set)
 
     def read(self, char):
-        return self.transitions.get(SIGMA, set()) | self.transitions.get(char, set())
+        return self.transitions.get(char, set())
 
     def add(self, *pairs):
         ipairs = iter(pairs)
