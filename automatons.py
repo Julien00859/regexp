@@ -1,4 +1,6 @@
 from collections import defaultdict
+from contextlib import redirect_stdout
+from io import StringIO
 
 SIGMA = object()
 
@@ -10,12 +12,12 @@ class Node:
         Node.count += 1
 
     def __str__(self):
-        return "(%d)" % self.id
+        return ("({:0%dd})" % len(str(self.count - 1))).format(self.id)
 
-    def read(self, symbol):
+    def read(self, char):
         raise NotImplementedError("abstract method")
 
-    def add(self, symbol):
+    def add(self, char, node):
         raise NotImplementedError("abstract method")
 
     def print_transitions(self):
@@ -27,15 +29,20 @@ class NonDeterministNode(Node):
         super().__init__(is_final)
         self.transitions = defaultdict(set)
 
-    def read(self, symbol):
-        return self.transitions.get(SIGMA, set()) | self.transitions.get(symbol, set())
+    def read(self, char):
+        return self.transitions.get(SIGMA, set()) | self.transitions.get(char, set())
 
-    def add(self, node, symbol, *pairs):
-        if not isinstance(node, NonDeterministNode):
-            raise TypeError()
-        self.transitions[symbol].add(node)
-        for node, symbol in pairs:
-            self.transitions[symbol].add(node)
+    def add(self, *pairs):
+        ipairs = iter(pairs)
+        for char, node in zip(ipairs, ipairs):
+            self.transitions[char].add(node)
+
+    def print_transitions(self):
+        for char, nodes in self.transitions.items():
+            for node in nodes:
+                print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node)
+        if self.is_final:
+            print(self, "-->")
 
 
 class DeterministNode(Node):
@@ -43,37 +50,36 @@ class DeterministNode(Node):
         super().__init__(is_final)
         self.transitions = dict()
 
-    def read(self, symbol):
-        return self.transitions.get(SIGMA) or self.transitions.get(symbol)
+    def read(self, char):
+        return self.transitions.get(SIGMA) or self.transitions.get(char)
 
-    def add(self, node, symbol, *pairs):
-        if symbol == "":
-            raise ValueError("Cannot have empty transition.")
-        if self.transitions.get(symbol) not in [node, None]:
-            raise ValueError("Cannot have same symbol going to differents nodes.")
-        if SIGMA in self.transitions:
+    def add(self, *pairs):
+        ipairs = iter(pairs)
+        for char, node in zip(ipairs, ipairs):
+            if char == "":
+                raise ValueError("Cannot have empty transition.")
+            if self.transitions.get(char) not in [node, None]:
+                raise ValueError("Cannot have same character going to differents nodes.")
+            if char == SIGMA and len(set(self.transitions.values()) | {node}) > 1:
+                raise ValueError("Another transition is going elsewhere.")
             if self.transitions.get(SIGMA) not in [node, None]:
                 raise ValueError("Sigma is going elsewhere.")
-        else:
-            self.transitions[symbol] = node
-        for node, symbol in pairs:
-            if symbol == "":
-                raise ValueError("Cannot have empty transition.")
-            if self.transitions.get(symbol) not in [node, None]:
-                raise ValueError("Cannot have same symbol going to differents nodes.")
-            if SIGMA in self.transitions:
-                if self.transition.get(SIGMA) not in [node, None]:
-                    raise ValueError("Sigma is going elsewhere.")
-            else:
-                self.transitions[symbol] = node
+
+            self.transitions[char] = node
+
+    def print_transitions(self):
+        for char, node in self.transitions.items():
+            print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node)
+        if self.is_final:
+            print(self, "-->")
 
 
 class DeterministCompletedNode(DeterministNode):
-    void_node = DeterministNode(is_final=False)
-    void_node.add(SIGMA, void_node)
+    trap_node = DeterministNode(is_final=False)
+    trap_node.add(SIGMA, trap_node)
 
-    def read(self, symbol):
-        self.transitions.get(symbol, self.void_node)
+    def read(self, char):
+        return super(DeterministNode).read(char) or trap_node
 
 
 class Automaton:
@@ -83,17 +89,34 @@ class Automaton:
     def match(self, string):
         raise NotImplementedError("abstract method")
 
-    def print_tree(self):
-        seen = set()
-        show = {self.initial_node}
-        while show:
-            next_nodes = set()
-            for node in show:
-                node.print_transitions()
-                seen.add(node)
-                next_nodes.update(*node.tranditions.values())
-            show = next_nodes - seen
+    def print(self):
+        buffer_ = StringIO()
 
+        # Feed the buffer with the tree
+        with redirect_stdout(buffer_):
+            print(" " * len(str(Node.count - 1)), "-->", self.initial_node)
+            seen = set()
+            show = {self.initial_node}
+            while show:
+                next_nodes = set()
+                for node in show:
+                    node.print_transitions()
+                    seen.add(node)
+                    next_nodes.update(*node.transitions.values())
+                show = next_nodes - seen
+
+        # Pretty print the tree by sorting nodes and
+        # printing final nodes at the end
+        lines = buffer_.getvalue().splitlines()
+        ends = []
+        for idx, line in enumerate(lines):
+            if line.endswith("-->"):
+                ends.append(line)
+                lines[idx] = None
+        for line in sorted(filter(bool, lines)):
+            print(line)
+        for line in sorted(ends):
+            print(line)
 
 class NonDeterministAutomaton(Automaton):
     def match(self, string):
