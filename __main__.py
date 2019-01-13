@@ -11,12 +11,12 @@ parser.add_argument("-f", dest="fullmatch", action="store_const", const=True, de
 args = parser.parse_args()
 
 if not args.fullmatch:
-    if not args.regexp.startswith(".*"):
-        args.regexp = ".*%s" % args.regexp
-    if not args.regexp.endswith(".*"):
-        args.regexp = "%s.*" % args.regexp
+    if not args.regexp.startswith("Σ*"):
+        args.regexp = "Σ*%s" % args.regexp
+    if not args.regexp.endswith("Σ*"):
+        args.regexp = "%sΣ*" % args.regexp
 
-automaton = dcma.from_dca(dca.from_da(da.from_nda(nda.from_regexp(args.regexp))))
+automaton = dcma.from_dca(dca.from_da(da.from_nda(nda.from_pattern(args.regexp))))
 found = False
 for filepath in args.files:
     with open(filepath) as fd:

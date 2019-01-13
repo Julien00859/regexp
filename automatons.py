@@ -9,9 +9,6 @@ class Node:
         self.id = Node.count
         Node.count += 1
 
-    def __repr__(self):
-        return "<{} {}>".format(self.__class__.__name__, self.id)
-
     def __str__(self):
         return "(%d)" % self.id
 
@@ -21,16 +18,21 @@ class Node:
     def add(self, symbol):
         raise NotImplementedError("abstract method")
 
+    def print_transitions(self):
+        raise NotImplementedError("abstract method")
+
 
 class NonDeterministNode(Node):
-    def __init__(self, is_final):
-        super().__init__(self, is_final)
+    def __init__(self, is_final=False):
+        super().__init__(is_final)
         self.transitions = defaultdict(set)
 
     def read(self, symbol):
         return self.transitions.get(SIGMA, set()) | self.transitions.get(symbol, set())
 
     def add(self, node, symbol, *pairs):
+        if not isinstance(node, NonDeterministNode):
+            raise TypeError()
         self.transitions[symbol].add(node)
         for node, symbol in pairs:
             self.transitions[symbol].add(node)
@@ -38,7 +40,7 @@ class NonDeterministNode(Node):
 
 class DeterministNode(Node):
     def __init__(self, is_final):
-        super().__init__(self, is_final)
+        super().__init__(is_final)
         self.transitions = dict()
 
     def read(self, symbol):
@@ -47,27 +49,27 @@ class DeterministNode(Node):
     def add(self, node, symbol, *pairs):
         if symbol == "":
             raise ValueError("Cannot have empty transition.")
-        if self.transitions.get(symbol) != node:
+        if self.transitions.get(symbol) not in [node, None]:
             raise ValueError("Cannot have same symbol going to differents nodes.")
         if SIGMA in self.transitions:
-            if self.transitions.get(SIGMA) != node:
+            if self.transitions.get(SIGMA) not in [node, None]:
                 raise ValueError("Sigma is going elsewhere.")
         else:
             self.transitions[symbol] = node
         for node, symbol in pairs:
             if symbol == "":
                 raise ValueError("Cannot have empty transition.")
-            if self.transitions.get(symbol) != node:
+            if self.transitions.get(symbol) not in [node, None]:
                 raise ValueError("Cannot have same symbol going to differents nodes.")
             if SIGMA in self.transitions:
-                if self.transition.get(SIGMA) != node:
+                if self.transition.get(SIGMA) not in [node, None]:
                     raise ValueError("Sigma is going elsewhere.")
             else:
                 self.transitions[symbol] = node
 
 
 class DeterministCompletedNode(DeterministNode):
-    void_node = DeterministNode(is_final=false)
+    void_node = DeterministNode(is_final=False)
     void_node.add(SIGMA, void_node)
 
     def read(self, symbol):
@@ -81,16 +83,27 @@ class Automaton:
     def match(self, string):
         raise NotImplementedError("abstract method")
 
+    def print_tree(self):
+        seen = set()
+        show = {self.initial_node}
+        while show:
+            next_nodes = set()
+            for node in show:
+                node.print_transitions()
+                seen.add(node)
+                next_nodes.update(*node.tranditions.values())
+            show = next_nodes - seen
+
 
 class NonDeterministAutomaton(Automaton):
     def match(self, string):
         new_nodes = {self.initial_node}
         self._expand(new_nodes)
-        for letter in string:
+        for char in string:
             old_nodes = new_nodes
             new_nodes = set()
             for node in old_nodes:
-                new_nodes |= node.read(symbol)
+                new_nodes |= node.read(char)
                 new_nodes |= node.read(SIGMA)
             self._expand(new_nodes)
             if not new_nodes:
@@ -110,8 +123,9 @@ class NonDeterministAutomaton(Automaton):
             nodes.update(new_nodes)
 
     @classmethod
-    def from_regexp(class_, regexp):
-        raise NotImplementedError("todo")
+    def from_pattern(class_, pattern):
+        from pattern import parse
+        return parse(pattern)
 
 
 class DeterministAutomaton(Automaton):
@@ -134,7 +148,7 @@ class DeterministCompletedAutomaton(DeterministAutomaton):
         for letter in string:
             node = node.read(letter)
         return node.is_final
-    
+
     @classmethod
     def from_da(class_, da):
         raise NotImplementedError("todo")
