@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from itertools import tee, zip_longest
 from automatons import NDN, NDA, SIGMA
 
@@ -102,4 +104,26 @@ def concat(start, char):
     new = NDN()
     start.add(char, new)
     return new
+
+if __name__ == "__main__":
+    tests = [
+        ("abc", "abc"),
+        ("a*", "", "a", "aa"),
+        ("a|b", "a", "b"),
+        ("a|b*", "", "a", "b", "bb"),
+        ("(a|b)(c|d)", "ac", "ad", "bc", "bd"),
+        ("Σ", "a", "b"),
+        ("Σ*", "", "a", "aa"),
+        ("(a|b)*", "", "a", "b", "aaa", "bbb", "aba", "bab", "aabb", "bbaa"),
+        ("(ab|cd)*", "", "ab", "cd", "abab", "cdcd", "abcdab", "cdabcd", "ababcdcd", "cdcdabab"),
+        ("\*", "*"),
+        ("\**", "", "*", "**"),
+        ("a(b|c)de*(fg|hi)*", "acd", "acde", "acdfg", "abdeee", "acdehi", "acdeefghi", "acdeefghifghi"),
+        ("(fg*|hi)*", "", "f", "fg", "fgg", "hi", "fhi", "fghi", "fgghi", "hif", "hifg", "hifgg")
+    ]
+
+    for pattern, *strings in tests:
+        automaton = parse(pattern)
+        for string in strings:
+            assert automaton.match(string), "{}: {}".format(pattern, string)
 
