@@ -30,8 +30,9 @@ def groups(start, end, iteratee):
     skip = False
     escape = False
     kleene_start = NDN()
-    start.add(kleene_start, "")
+    start.add("", kleene_start)
     last_node = kleene_start
+    last_nodes = []
 
     for char, next_char in iteratee:
         if escape:
@@ -60,13 +61,14 @@ def groups(start, end, iteratee):
 
         elif char == ")":
             if next_char == "*":
-                kleene(start, kleene_start, last_node).add("", end)
+                kleene(start, kleene_start, last_node, *last_nodes).add("", end)
                 return True
             else:
                 last_node.add("", end)
                 return False
 
         elif char == "|":
+            last_nodes.append(last_node)
             last_node.add("", end)
             last_node = kleene_start
 
@@ -80,18 +82,21 @@ def groups(start, end, iteratee):
             else:
                 last_node = concat(last_node, char_)
 
+    last_node.add("", end)
 
-def kleene(start, start_in, end_in):
+
+def kleene(start, start_in, *ends_in):
     end = NDN()
-    start.add(start_in, "")
-    start.add(end, "")
-    end_in.add(start_in, "")
-    end_in.add(end, "")
+    start.add("", start_in)
+    start.add("", end)
+    for end_in in ends_in:
+        end_in.add("", start_in)
+        end_in.add("", end)
     return end
 
 
 def concat(start, char):
     new = NDN()
-    start.add(new, char)
+    start.add(char, new)
     return new
 
