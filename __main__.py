@@ -35,7 +35,7 @@ for filepath in filter(isfile, args.files):
             if automaton.match(line):
                 found = True
                 if not args.quiet:
-                    print(line)
+                    print(line, end="")
 
 sys_exit(not found)
 
