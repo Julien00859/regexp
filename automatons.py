@@ -23,6 +23,9 @@ class Node:
     def print_transitions(self):
         raise NotImplementedError("abstract method")
 
+    def __hash__(self):
+        return self.id
+
 
 class NonDeterministNode(Node):
     def __init__(self, is_final=False):
@@ -51,20 +54,13 @@ class DeterministNode(Node):
         self.transitions = dict()
 
     def read(self, char):
-        return self.transitions.get(SIGMA) or self.transitions.get(char)
+        return self.transitions.get(char) or self.transitions.get(SIGMA)
 
     def add(self, *pairs):
         ipairs = iter(pairs)
         for char, node in zip(ipairs, ipairs):
             if char == "":
                 raise ValueError("Cannot have empty transition.")
-            if self.transitions.get(char) not in [node, None]:
-                raise ValueError("Cannot have same character going to differents nodes.")
-            if char == SIGMA and len(set(self.transitions.values()) | {node}) > 1:
-                raise ValueError("Another transition is going elsewhere.")
-            if self.transitions.get(SIGMA) not in [node, None]:
-                raise ValueError("Sigma is going elsewhere.")
-
             self.transitions[char] = node
 
     def print_transitions(self):
@@ -74,12 +70,8 @@ class DeterministNode(Node):
             print(self, "-->")
 
 
-class DeterministCompletedNode(DeterministNode):
-    trap_node = DeterministNode(is_final=False)
-    trap_node.add(SIGMA, trap_node)
-
-    def read(self, char):
-        return super(DeterministNode).read(char) or trap_node
+trap_node = DeterministNode(is_final=False)
+trap_node.add(SIGMA, trap_node)
 
 
 class Automaton:
@@ -102,7 +94,10 @@ class Automaton:
                 for node in show:
                     node.print_transitions()
                     seen.add(node)
-                    next_nodes.update(*node.transitions.values())
+                    if isinstance(self, DA):
+                        next_nodes.update(node.transitions.values())
+                    else:
+                        next_nodes.update(*node.transitions.values())
                 show = next_nodes - seen
 
         # Pretty print the tree by sorting nodes and
@@ -162,7 +157,46 @@ class DeterministAutomaton(Automaton):
 
     @classmethod
     def from_nda(class_, nda):
-        raise NotImplementedError("todo")
+        initial_nodes = {nda.initial_node}
+        nda._expand(initial_nodes)
+        initial_nodes = frozenset(initial_nodes)
+
+        stack = [initial_nodes]
+        all_nodes = set([initial_nodes])
+        table = {}
+
+        while stack:
+            cur_nodes = stack.pop()
+            table[cur_nodes] = {}
+            alphabet = set()
+            for node in cur_nodes:
+                alphabet.update(node.transitions.keys())
+            alphabet.difference_update(set([""]))
+
+            for char in alphabet:
+                all_targets = set()
+                for node in cur_nodes:
+                    targets = node.read(char)
+                    nda._expand(targets)
+                    all_targets.update(targets)
+                cell_nodes = frozenset(all_targets)
+                if cell_nodes not in all_nodes:
+                    all_nodes.add(cell_nodes)
+                    stack.append(cell_nodes)
+                table[cur_nodes][char] = cell_nodes
+
+        nda_nodes_to_da_node = {}
+        for nodes in all_nodes:
+            is_final = any(map(lambda n: n.is_final, nodes))
+            dn = DN(is_final)
+            nda_nodes_to_da_node[nodes] = dn
+
+        for nodes in all_nodes:
+            dn = nda_nodes_to_da_node[nodes]
+            for char in table[nodes]:
+                dn.add(char, nda_nodes_to_da_node[table[nodes][char]])
+
+        return class_(nda_nodes_to_da_node[initial_nodes])
 
 
 class DeterministCompletedAutomaton(DeterministAutomaton):
@@ -170,11 +204,22 @@ class DeterministCompletedAutomaton(DeterministAutomaton):
         node = self.initial_node
         for letter in string:
             node = node.read(letter)
+            if node is trap_node:
+                return False
         return node.is_final
 
     @classmethod
     def from_da(class_, da):
-        raise NotImplementedError("todo")
+        dca = class_(da.initial_node)
+        seen = set()
+        nodes = [dca.initial_node]
+        while nodes:
+            node = nodes.pop()
+            new_nodes = set(node.transitions.values()) - seen
+            nodes.extend(new_nodes)
+            seen |= new_nodes
+            node.transitions.setdefault(SIGMA, trap_node)
+        return dca
 
 
 class DeterministCompletedMinimalAutomaton(DeterministCompletedAutomaton):
@@ -185,7 +230,6 @@ class DeterministCompletedMinimalAutomaton(DeterministCompletedAutomaton):
 
 NDN = NonDeterministNode
 DN = DeterministNode
-DCN = DeterministCompletedNode
 NDA = NonDeterministAutomaton
 DA = DeterministAutomaton
 DCA = DeterministCompletedAutomaton
