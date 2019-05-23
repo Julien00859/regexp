@@ -24,7 +24,7 @@ automaton = NDA.from_pattern(args.regexp)
 try:
     automaton = DA.from_nda(automaton)
     automaton = DCA.from_da(automaton)
-    automaton = CDMA.from_dca(automaton)
+    automaton = DCMA.from_dca(automaton)
 except NotImplementedError:
     pass
 
