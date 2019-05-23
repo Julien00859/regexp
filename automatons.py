@@ -43,9 +43,7 @@ class NonDeterministNode(Node):
     def print_transitions(self):
         for char, nodes in self.transitions.items():
             for node in nodes:
-                print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node)
-        if self.is_final:
-            print(self, "-->")
+                print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
 
 
 class DeterministNode(Node):
@@ -65,9 +63,7 @@ class DeterministNode(Node):
 
     def print_transitions(self):
         for char, node in self.transitions.items():
-            print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node)
-        if self.is_final:
-            print(self, "-->")
+            print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
 
 
 trap_node = DeterministNode(is_final=False)
