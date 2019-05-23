@@ -153,17 +153,35 @@ class DeterministAutomaton(Automaton):
 
     @classmethod
     def from_nda(class_, nda):
+        r"""
+        Pattern: a*b
+                       /<-ε--\
+        NDA: (0)--ε->(1)--a->(2)--ε->(3)--b->(4)->
+               \----------ε--------->/
+
+        Derivation table:    nodes  |    a    |  b
+                           ----------+---------+-----
+                            {0,1,3} | {1,2,3} | {4}
+                            {1,2,3} | {1,2,3} | {4}
+                              {4}   |         |
+
+        ndn_to_dn: {{0,1,3}: {5}, {1,2,3}: {6}, {4}: {7}}
+
+                    \<a-/
+        DA: (5)--a-->(6)--b-->(7)
+              \-------b------>/
+        """
         initial_nodes = {nda.initial_node}
         nda._expand(initial_nodes)
         initial_nodes = frozenset(initial_nodes)
 
         stack = [initial_nodes]
         all_nodes = set([initial_nodes])
-        table = {}
+        derivation_table = defaultdict(dict)
 
+        # Create and fill the derivation table
         while stack:
             cur_nodes = stack.pop()
-            table[cur_nodes] = {}
             alphabet = set()
             for node in cur_nodes:
                 alphabet.update(node.transitions.keys())
@@ -179,20 +197,23 @@ class DeterministAutomaton(Automaton):
                 if cell_nodes not in all_nodes:
                     all_nodes.add(cell_nodes)
                     stack.append(cell_nodes)
-                table[cur_nodes][char] = cell_nodes
+                derivation_table[cur_nodes][char] = cell_nodes
 
-        nda_nodes_to_da_node = {}
+        # Create a new determinist node for each group of
+        # non-determinist nodes from the derivation table
+        ndn_to_dn = {}
         for nodes in all_nodes:
             is_final = any(map(lambda n: n.is_final, nodes))
             dn = DN(is_final)
-            nda_nodes_to_da_node[nodes] = dn
+            ndn_to_dn[nodes] = dn
 
+        # Link determinist nodes using the derivation table
         for nodes in all_nodes:
-            dn = nda_nodes_to_da_node[nodes]
-            for char in table[nodes]:
-                dn.add(char, nda_nodes_to_da_node[table[nodes][char]])
+            dn = ndn_to_dn[nodes]
+            for char in derivation_table[nodes]:
+                dn.add(char, ndn_to_dn[derivation_table[nodes][char]])
 
-        return class_(nda_nodes_to_da_node[initial_nodes])
+        return class_(ndn_to_dn[initial_nodes])
 
 
 class DeterministCompletedAutomaton(DeterministAutomaton):
