@@ -176,7 +176,6 @@ class DeterministAutomaton(Automaton):
         initial_nodes = frozenset(initial_nodes)
 
         stack = [initial_nodes]
-        all_nodes = set([initial_nodes])
         derivation_table = defaultdict(dict)
 
         # Create and fill the derivation table
@@ -194,21 +193,20 @@ class DeterministAutomaton(Automaton):
                     nda._expand(targets)
                     all_targets.update(targets)
                 cell_nodes = frozenset(all_targets)
-                if cell_nodes not in all_nodes:
-                    all_nodes.add(cell_nodes)
+                if cell_nodes not in derivation_table:
                     stack.append(cell_nodes)
                 derivation_table[cur_nodes][char] = cell_nodes
 
         # Create a new determinist node for each group of
         # non-determinist nodes from the derivation table
         ndn_to_dn = {}
-        for nodes in all_nodes:
+        for nodes in derivation_table:
             is_final = any(map(lambda n: n.is_final, nodes))
             dn = DN(is_final)
             ndn_to_dn[nodes] = dn
 
         # Link determinist nodes using the derivation table
-        for nodes in all_nodes:
+        for nodes in derivation_table:
             dn = ndn_to_dn[nodes]
             for char in derivation_table[nodes]:
                 dn.add(char, ndn_to_dn[derivation_table[nodes][char]])
