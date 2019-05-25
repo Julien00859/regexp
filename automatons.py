@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from contextlib import redirect_stdout
 from io import StringIO
 from functools import partial
@@ -14,6 +14,8 @@ class Node:
 
     def __str__(self):
         return ("({:0%dd})" % len(str(self.count - 1))).format(self.id)
+
+    __repr__ = __str__
 
     def read(self, char):
         raise NotImplementedError("abstract method")
@@ -238,58 +240,68 @@ class DeterministCompletedAutomaton(DeterministAutomaton):
         return dca
 
 
-class DeterministCompletedMinimalAutomaton(DeterministCompletedAutomaton):
+class DeterministCompletedMinimalistAutomaton(DeterministCompletedAutomaton):
     @classmethod
     def from_dca(class_, dca):
-        all_nodes = set([dca.initial_node])
+        # Gather automaton's nodes
+        dca_nodes = set([dca.initial_node])
         new_nodes = set([dca.initial_node])
         while new_nodes:
             new_nodes_targets = set()
             for node in new_nodes:
                 new_nodes_targets.update(set(node.transitions.values()))
-            new_nodes = new_nodes_targets - all_nodes
-            all_nodes.update(new_nodes)
+            new_nodes = new_nodes_targets - dca_nodes
+            dca_nodes.update(new_nodes)
+        dca_nodes = sorted(list(dca_nodes), key=lambda n: n.id)
 
+        # Gather automaton's alphabet
+        # determinism (=order) is important and sigma must be the last
         alphabet = set()
-        for node in all_nodes:
+        for node in dca_nodes:
             alphabet.update(node.transitions.keys())
-        alphabet.difference_update([SIGMA])
-        alphabet = list(alphabet) + [SIGMA]
+        alphabet.remove(SIGMA)
+        alphabet = sorted(list(alphabet)) + [SIGMA]
 
+        # Create the minimal derivation table
         nodes = None
-        new_nodes = {node: 0 if node.is_final else 1 for node in all_nodes}
-        system = 2
-
-        watchdog = 1000
-        while nodes != new_nodes and watchdog:
+        new_nodes = OrderedDict((node, int(not node.is_final) + 1) for node in dca_nodes)
+        system = 3
+        while nodes != new_nodes:
             nodes = new_nodes
-            derivation_table = defaultdict(int)
+            derivations = defaultdict(int)
             for node in nodes:
                 for rank, char in enumerate(alphabet):
-                    if char in node.transitions:
-                        derivation_table[node] += nodes[node.read(char)] * system ** rank
-            new_values = dict(zip(set(derivation_table.values()),
-                                  range(len(derivation_table))))
-            new_nodes = {node: new_values[derivation_table[node]] for node in nodes}
-            system = len(new_values)
-            watchdog -= 1
-        if not watchdog:
-            raise RuntimeError("Woof woof !")
+                    target = node.transitions.get(char)
+                    if target:
+                        derivations[node] += nodes[target] * system ** rank
 
-        value_to_node = defaultdict(partial(DeterministNode, False))
-        for node in nodes:
-            value_to_node[nodes[node]].is_final |= node.is_final
+            system = 1
+            ids = {}
+            new_nodes = OrderedDict()
+            for node in nodes:
+                if derivations[node] not in ids:
+                    ids[derivations[node]] = system
+                    system += 1
+                new_nodes[node] = ids[derivations[node]]
 
-        for node in nodes:
-            new_node = value_to_node[nodes[node]]
-            for rank, char in enumerate(alphabet):
-                new_node.add(char, value_to_node[derivation_table[node] // system ** rank % system])
+        # Rename
+        dca_to_id = nodes
 
-        return class_(value_to_node[nodes[dca.initial_node]])
+        # Create nodes for new automaton
+        id_to_dcma = {dca_to_id[node]: DeterministNode(node.is_final) for node in dca_nodes}
 
+        # Link DCMA nodes
+        seen_ids = set()
+        for dca_node in dca_nodes:
+            dca_node_id = dca_to_id[dca_node]
+            if dca_node_id not in seen_ids:
+                seen_ids.add(dca_node_id)
+                dcma_node = id_to_dcma[dca_node_id]
+                for char, dca_target in dca_node.transitions.items():
+                    dcma_target = id_to_dcma[dca_to_id[dca_target]]
+                    dcma_node.add(char, dcma_target)
 
-
-
+        return class_(id_to_dcma[dca_to_id[dca.initial_node]])
 
 
 
@@ -299,5 +311,5 @@ DN = DeterministNode
 NDA = NonDeterministAutomaton
 DA = DeterministAutomaton
 DCA = DeterministCompletedAutomaton
-DCMA = DeterministCompletedMinimalAutomaton
+DCMA = DeterministCompletedMinimalistAutomaton
 
