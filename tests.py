@@ -1,6 +1,5 @@
 import unittest
-import automatons
-from pattern import parse
+from automatons import NDA, DA, DCA, DCMA
 
 class TestPattern(unittest.TestCase):
     def test_single(self):
@@ -10,7 +9,7 @@ class TestPattern(unittest.TestCase):
         self.assertMatch("Σ", ["a", "b"], [""])
 
     def test_espilon(self):
-        pass
+        self.assertMatch("(ε|a)(ε|a)", ["", "a", "aa"], ["aaa"])
 
     def test_espace(self):
         self.assertMatch(r"\a", ["a"], ["", r"\a"])
@@ -52,8 +51,12 @@ class TestPattern(unittest.TestCase):
         self.assertMatch("a(b(c(d)))", ["abcd"], [])
 
     def assertMatch(self, pattern, matchs, nomatchs):
-        automaton = parse(pattern)
-        for string in matchs:
-            self.assertTrue(automaton.match(string), "%s doesn't match" % string)
-        for string in nomatchs:
-            self.assertFalse(automaton.match(string), "%s does match" % string)
+        automaton = pattern
+        for constructor in (NDA.from_pattern, DA.from_nda, DCA.from_da, DCMA.from_dca):
+            automaton = constructor(automaton)
+            for string in matchs:
+                self.assertTrue(automaton.match(string),
+                    "{} should match {}".format(automaton.__class__.__name__, string))
+            for string in nomatchs:
+                self.assertFalse(automaton.match(string),
+                    "{} should not match {}".format(automaton.__class__.__name__, string))
