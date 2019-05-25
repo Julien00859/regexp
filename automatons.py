@@ -30,7 +30,7 @@ class Node:
         return self.id
 
 
-class NonDeterministNode(Node):
+class NonDeterministicNode(Node):
     def __init__(self, is_final=False):
         super().__init__(is_final)
         self.transitions = defaultdict(set)
@@ -49,7 +49,7 @@ class NonDeterministNode(Node):
                 print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
 
 
-class DeterministNode(Node):
+class DeterministicNode(Node):
     def __init__(self, is_final):
         super().__init__(is_final)
         self.transitions = dict()
@@ -69,7 +69,7 @@ class DeterministNode(Node):
             print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
 
 
-trap_node = DeterministNode(is_final=False)
+trap_node = DeterministicNode(is_final=False)
 trap_node.add(SIGMA, trap_node)
 
 
@@ -112,7 +112,7 @@ class Automaton:
         for line in sorted(ends):
             print(line)
 
-class NonDeterministAutomaton(Automaton):
+class NonDeterministicAutomaton(Automaton):
     def match(self, string):
         new_nodes = {self.initial_node}
         self._expand(new_nodes)
@@ -145,7 +145,7 @@ class NonDeterministAutomaton(Automaton):
         return parse(pattern)
 
 
-class DeterministAutomaton(Automaton):
+class DeterministicAutomaton(Automaton):
     def match(self, string):
         node = self.initial_node
         for letter in string:
@@ -200,15 +200,15 @@ class DeterministAutomaton(Automaton):
                     stack.append(cell_nodes)
                 derivation_table[cur_nodes][char] = cell_nodes
 
-        # Create a new determinist node for each group of
-        # non-determinist nodes from the derivation table
+        # Create a new deterministic node for each group of
+        # non-deterministic nodes from the derivation table
         ndn_to_dn = {}
         for nodes in derivation_table:
             is_final = any(map(lambda n: n.is_final, nodes))
             dn = DN(is_final)
             ndn_to_dn[nodes] = dn
 
-        # Link determinist nodes using the derivation table
+        # Link deterministic nodes using the derivation table
         for nodes in derivation_table:
             dn = ndn_to_dn[nodes]
             for char in derivation_table[nodes]:
@@ -217,7 +217,7 @@ class DeterministAutomaton(Automaton):
         return class_(ndn_to_dn[initial_nodes])
 
 
-class DeterministCompletedAutomaton(DeterministAutomaton):
+class DeterministicCompletedAutomaton(DeterministicAutomaton):
     def match(self, string):
         node = self.initial_node
         for letter in string:
@@ -240,7 +240,7 @@ class DeterministCompletedAutomaton(DeterministAutomaton):
         return dca
 
 
-class DeterministCompletedMinimalistAutomaton(DeterministCompletedAutomaton):
+class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton):
     @classmethod
     def from_dca(class_, dca):
         # Gather automaton's nodes
@@ -288,7 +288,7 @@ class DeterministCompletedMinimalistAutomaton(DeterministCompletedAutomaton):
         dca_to_id = nodes
 
         # Create nodes for new automaton
-        id_to_dcma = {dca_to_id[node]: DeterministNode(node.is_final) for node in dca_nodes}
+        id_to_dcma = {dca_to_id[node]: DeterministicNode(node.is_final) for node in dca_nodes}
 
         # Link DCMA nodes
         seen_ids = set()
@@ -306,10 +306,10 @@ class DeterministCompletedMinimalistAutomaton(DeterministCompletedAutomaton):
 
 
 
-NDN = NonDeterministNode
-DN = DeterministNode
-NDA = NonDeterministAutomaton
-DA = DeterministAutomaton
-DCA = DeterministCompletedAutomaton
-DCMA = DeterministCompletedMinimalistAutomaton
+NDN = NonDeterministicNode
+DN = DeterministicNode
+NDA = NonDeterministicAutomaton
+DA = DeterministicAutomaton
+DCA = DeterministicCompletedAutomaton
+DCMA = DeterministicCompletedMinimalistAutomaton
 
