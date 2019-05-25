@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from os.path import isfile
+from string import ascii_uppercase
 from sys import exit as sys_exit
 from automatons import DCMA, DCA, DA, NDA
 
@@ -12,7 +13,16 @@ parser.add_argument("-q", "--quiet", dest="quiet", action="store_const", const=T
                     help="Don't output lines found")
 parser.add_argument("-f", "--fullmatch", dest="fullmatch", action="store_const", const=True, default=False,
                     help="Match the pattern against a full line")
+parser.add_argument("-v", "--verbose", dest="verbose", action="store_const", const=True, default=False)
 args = parser.parse_args()
+
+
+def titlelize(string):
+    padding = 1 if string[0] in ascii_uppercase else 0
+    for letter in ascii_uppercase:
+        string = string.replace(letter, " " + letter)
+    return string[padding:]
+
 
 if not args.fullmatch:
     if not args.regexp.startswith("Σ*"):
@@ -20,13 +30,13 @@ if not args.fullmatch:
     if not args.regexp.endswith("Σ*"):
         args.regexp = "%sΣ*" % args.regexp
 
-automaton = NDA.from_pattern(args.regexp)
-try:
-    automaton = DA.from_nda(automaton)
-    automaton = DCA.from_da(automaton)
-    automaton = DCMA.from_dca(automaton)
-except NotImplementedError:
-    pass
+automaton = args.regexp
+for construct in (NDA.from_pattern, DA.from_nda, DCA.from_da, DCMA.from_dca):
+    automaton = construct(automaton)
+    if args.verbose:
+        print(titlelize(automaton.__class__.__name__))
+        automaton.print()
+        print()
 
 found = False
 for filepath in filter(isfile, args.files):
