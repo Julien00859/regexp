@@ -179,7 +179,7 @@ class DeterministicAutomaton(Automaton):
         initial_nodes = frozenset(initial_nodes)
 
         stack = [initial_nodes]
-        derivation_table = defaultdict(dict)
+        derivation_table = {}
 
         # Create and fill the derivation table
         while stack:
@@ -189,6 +189,7 @@ class DeterministicAutomaton(Automaton):
                 alphabet.update(node.transitions.keys())
             alphabet.difference_update(set([""]))
 
+            derivation_table[cur_nodes] = {}
             for char in alphabet:
                 all_targets = set()
                 for node in cur_nodes:
@@ -264,16 +265,17 @@ class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton)
 
         # Create the minimal derivation table
         nodes = None
-        new_nodes = OrderedDict((node, int(not node.is_final) + 1) for node in dca_nodes)
+        new_nodes = OrderedDict((node, int(node.is_final) + 1) for node in dca_nodes)
         system = 3
         while nodes != new_nodes:
             nodes = new_nodes
-            derivations = defaultdict(int)
+            derivations = {}
             for node in nodes:
+                derivations[node] = nodes[node]
                 for rank, char in enumerate(alphabet):
                     target = node.transitions.get(char)
                     if target:
-                        derivations[node] += nodes[target] * system ** rank
+                        derivations[node] += nodes[target] * system ** (rank + 1)
 
             system = 1
             ids = {}
