@@ -224,7 +224,7 @@ class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton)
         dca_to_id = nodes
 
         # Create nodes for new automaton
-        id_to_dcma = {dca_to_id[node]: DeterministicNode(node.is_final) for node in dca_nodes}
+        id_to_dcma = {dca_to_id[node]: DN(node.is_final) for node in dca_nodes}
 
         # Link DCMA nodes
         seen_ids = set()
