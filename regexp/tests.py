@@ -1,5 +1,5 @@
 import unittest
-from automatons import NDA, DA, DCA, DCMA
+from .automatons import NDA, DA, DCA, DCMA
 
 class TestPattern(unittest.TestCase):
     def test_single(self):

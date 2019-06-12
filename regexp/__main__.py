@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from os.path import isfile
 from string import ascii_uppercase
 from sys import exit as sys_exit
-from automatons import DCMA, DCA, DA, NDA
+from .compile import compile
 
 parser = ArgumentParser()
 parser.add_argument("regexp", help="Pattern to use")

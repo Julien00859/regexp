@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-
 from itertools import tee, zip_longest
-from automatons import NDN, NDA, SIGMA
+from .specchars import SIGMA
+from .nodes import NDN
 
 class ParsingError(Exception):
     def __init__(self, message, pattern, index):
@@ -24,7 +23,7 @@ def parse(pattern):
         pass
     else:
         raise ParsingError("Unmatched parenthesis", len(pattern)-1, pattern)
-    return NDA(start)
+    return start
 
 
 def groups(start, end, iteratee, start_index, pattern):
