@@ -3,8 +3,8 @@ from contextlib import redirect_stdout
 from io import StringIO
 from functools import partial
 
-from .specchars import SIGMA
-from .nodes import NDN, DN, trap_node
+from .char import SIGMA
+from .nodes import Node, NDN, DN, trap_node
 from .pattern import parse
 
 
@@ -12,10 +12,14 @@ class Automaton:
     def __init__(self, initial_node):
         self.initial_node = initial_node
 
+    @property
+    def id(self):
+        return self.initial_node.id
+
     def match(self, string):
         raise NotImplementedError("abstract method")
 
-    def print(self):
+    def print_mesh(self):
         buffer_ = StringIO()
 
         # Feed the buffer with the tree
@@ -46,6 +50,9 @@ class Automaton:
             print(line)
         for line in sorted(ends):
             print(line)
+
+    def __str__(self):
+        return "<{} on {}>".format(self.__class__.__name__, self.initial_node)
 
 class NonDeterministicAutomaton(Automaton):
     def match(self, string):

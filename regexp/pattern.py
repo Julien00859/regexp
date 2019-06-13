@@ -1,5 +1,5 @@
 from itertools import tee, zip_longest
-from .specchars import SIGMA
+from .char import SIGMA
 from .nodes import NDN
 
 class ParsingError(Exception):

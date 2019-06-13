@@ -1,8 +1,12 @@
 from collections import defaultdict
-from .specchars import SIGMA
+from typing import MutableMapping, Any
+from .char import SIGMA, Character, char_to_str
+
 
 class Node:
     count = 0
+    transitions: MutableMapping[Character, Any]
+
     def __init__(self, is_final):
         self.is_final = is_final
         self.id = Node.count
@@ -11,7 +15,11 @@ class Node:
     def __str__(self):
         return ("({:0%dd})" % len(str(self.count - 1))).format(self.id)
 
-    __repr__ = __str__
+    def __repr__(self): 
+        return "<{} {} ({})>".format(
+            self.__class__.__name__,
+            self.id,
+            ", ".join(map(char_to_str, self.transitions)))
 
     def read(self, char):
         raise NotImplementedError("abstract method")
@@ -42,7 +50,7 @@ class NonDeterministicNode(Node):
     def print_transitions(self):
         for char, nodes in self.transitions.items():
             for node in nodes:
-                print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
+                print(self, char_to_str(char), node, "-->" if node.is_final else "")
 
 
 class DeterministicNode(Node):
@@ -62,7 +70,7 @@ class DeterministicNode(Node):
 
     def print_transitions(self):
         for char, node in self.transitions.items():
-            print(self, {SIGMA: "Σ", "": "ε"}.get(char, char), node, "-->" if node.is_final else "")
+            print(self, char_to_str(char), node, "-->" if node.is_final else "")
 
 
 trap_node = DeterministicNode(is_final=False)

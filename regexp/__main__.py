@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from os.path import isfile
 from string import ascii_uppercase
 from sys import exit as sys_exit
-from .compile import compile
+from .automatons import DCMA, DCA, DA, NDA
 
 parser = ArgumentParser()
 parser.add_argument("regexp", help="Pattern to use")
@@ -35,7 +35,7 @@ for construct in (NDA.from_pattern, DA.from_nda, DCA.from_da, DCMA.from_dca):
     automaton = construct(automaton)
     if args.verbose:
         print(titlelize(automaton.__class__.__name__))
-        automaton.print()
+        automaton.print_mesh()
         print()
 
 found = False

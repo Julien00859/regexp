@@ -1,1 +1,0 @@
-SIGMA = object()
