@@ -82,8 +82,8 @@ class NonDeterministicAutomaton(Automaton):
             nodes.update(new_nodes)
 
     @classmethod
-    def from_pattern(class_, pattern):
-        return class_(parse(pattern))
+    def from_pattern(cls, pattern):
+        return cls(parse(pattern))
 
 
 class DeterministicAutomaton(Automaton):
@@ -96,7 +96,7 @@ class DeterministicAutomaton(Automaton):
         return node.is_final
 
     @classmethod
-    def from_nda(class_, nda):
+    def from_nda(cls, nda):
         r"""
         Pattern: a*b
                        /<-ε--\
@@ -156,7 +156,7 @@ class DeterministicAutomaton(Automaton):
             for char in derivation_table[nodes]:
                 dn.add(char, ndn_to_dn[derivation_table[nodes][char]])
 
-        return class_(ndn_to_dn[initial_nodes])
+        return cls(ndn_to_dn[initial_nodes])
 
 
 class DeterministicCompletedAutomaton(DeterministicAutomaton):
@@ -169,8 +169,8 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
         return node.is_final
 
     @classmethod
-    def from_da(class_, da):
-        dca = class_(da.initial_node)
+    def from_da(cls, da):
+        dca = cls(da.initial_node)
         seen = set()
         nodes = [dca.initial_node]
         while nodes:
@@ -184,7 +184,7 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
 
 class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton):
     @classmethod
-    def from_dca(class_, dca):
+    def from_dca(cls, dca):
         # Gather automaton's nodes
         dca_nodes = set([dca.initial_node])
         new_nodes = set([dca.initial_node])
@@ -244,7 +244,7 @@ class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton)
                     dcma_target = id_to_dcma[dca_to_id[dca_target]]
                     dcma_node.add(char, dcma_target)
 
-        return class_(id_to_dcma[dca_to_id[dca.initial_node]])
+        return cls(id_to_dcma[dca_to_id[dca.initial_node]])
 
 
 NDA = NonDeterministicAutomaton
