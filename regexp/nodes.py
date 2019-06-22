@@ -43,6 +43,7 @@ class NonDeterministicNode(Node):
         return self.transitions.get(char, set())
 
     def add(self, *pairs):
+        assert len(pairs) % 2 == 0
         ipairs = iter(pairs)
         for char, node in zip(ipairs, ipairs):
             self.transitions[char].add(node)
@@ -62,6 +63,7 @@ class DeterministicNode(Node):
         return self.transitions.get(char) or self.transitions.get(SIGMA)
 
     def add(self, *pairs):
+        assert len(pairs) % 2 == 0
         ipairs = iter(pairs)
         for char, node in zip(ipairs, ipairs):
             if char == "":
