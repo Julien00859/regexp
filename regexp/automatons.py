@@ -16,6 +16,10 @@ class Automaton:
     def id(self):
         return self.initial_node.id
 
+    @property
+    def first_characters(self):
+        return set(self.initial_node.transitions.keys())
+
     def match(self, string):
         raise NotImplementedError("abstract method")
 
