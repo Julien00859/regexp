@@ -90,8 +90,8 @@ class NDFA(FA):
             nodes.update(new_nodes)
 
     @classmethod
-    def from_pattern(cls, pattern):
-        return cls(parse(pattern))
+    def from_pattern(cls, pattern, flags):
+        return cls(parse(pattern, flags=0))
 
 
 class DFA(FA):
@@ -106,8 +106,8 @@ class DFA(FA):
         return node.is_final
 
     @classmethod
-    def from_pattern(cls, pattern):
-        nda = NDFA.from_pattern(pattern)
+    def from_pattern(cls, pattern, flags):
+        nda = NDFA.from_pattern(pattern, flags)
         return cls.from_ndfa(nda)
 
     @classmethod
@@ -186,8 +186,8 @@ class DCFA(DFA):
         return node.is_final
 
     @classmethod
-    def from_pattern(cls, pattern):
-        da = super().from_pattern(pattern)
+    def from_pattern(cls, pattern, flags):
+        da = super().from_pattern(pattern, flags)
         return cls.from_dfa(da)
 
     @classmethod
@@ -213,8 +213,8 @@ class DCMFA(DCFA):
     """Deterministic Completed Minimalist Finite Automaton"""
 
     @classmethod
-    def from_pattern(cls, pattern):
-        dca = super().from_pattern(pattern)
+    def from_pattern(cls, pattern, flags):
+        dca = super().from_pattern(pattern, flags)
         return cls.from_dcfa(dca)
 
     @classmethod

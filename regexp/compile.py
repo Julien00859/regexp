@@ -1,3 +1,4 @@
 from .automatons import DCMFA
 
-compile = DCMFA.from_pattern
+def compile(pattern, flags=0):
+    return DCMFA.from_pattern(pattern, flags)

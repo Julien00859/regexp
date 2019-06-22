@@ -8,7 +8,7 @@ class ParsingError(Exception):
         super().__init__("{}. At index {}: {}".format(message, index, substr))
 
 
-def parse(pattern):
+def parse(pattern, flags):
     start = NDN()
     end = NDN(is_final=True)
 
@@ -16,7 +16,7 @@ def parse(pattern):
     next(p2)
     iteratee = zip_longest(p1, p2)
 
-    groups(start, end, iteratee, 0, pattern)
+    groups(start, end, iteratee, 0, pattern, flags=flags)
     try:
         next(iteratee)
     except StopIteration:
@@ -26,7 +26,7 @@ def parse(pattern):
     return start
 
 
-def groups(start, end, iteratee, start_index, pattern):
+def groups(start, end, iteratee, start_index, pattern, flags):
     skip = False
     escape = False
     kleene_start = NDN()
@@ -39,11 +39,11 @@ def groups(start, end, iteratee, start_index, pattern):
         if escape:
             if next_char == "*":
                 start_in = NDN()
-                end_in = concat(start_in, char)
-                last_node = kleene(last_node, start_in, end_in)
+                end_in = concat(start_in, char, flags=flags)
+                last_node = kleene(last_node, start_in, end_in, flags=flags)
                 skip = True
             else:
-                last_node = concat(last_node, char)
+                last_node = concat(last_node, char, flags=flags)
 
             escape = False
 
@@ -57,12 +57,12 @@ def groups(start, end, iteratee, start_index, pattern):
 
         elif char == "(":
             sub_end = NDN()
-            skip, start_index = groups(last_node, sub_end, iteratee, index + 1, pattern)
+            skip, start_index = groups(last_node, sub_end, iteratee, index + 1, pattern, flags=flags)
             last_node = sub_end
 
         elif char == ")":
             if next_char == "*":
-                kleene(start, kleene_start, last_node, *last_nodes).add("", end)
+                kleene(start, kleene_start, last_node, *last_nodes, flags=flags).add("", end)
                 return True, index
             else:
                 last_node.add("", end)
@@ -77,11 +77,11 @@ def groups(start, end, iteratee, start_index, pattern):
             char_ = SIGMA if char == "Σ" else char
             if next_char == "*":
                 start_in = NDN()
-                end_in = concat(start_in, char_)
-                last_node = kleene(last_node, start_in, end_in)
+                end_in = concat(start_in, char_, flags=flags)
+                last_node = kleene(last_node, start_in, end_in, flags=flags)
                 skip = True
             else:
-                last_node = concat(last_node, char_)
+                last_node = concat(last_node, char_, flags=flags)
 
     if escape:
         raise ParsingError("Invalid escape sequence", pattern, index)
@@ -89,7 +89,7 @@ def groups(start, end, iteratee, start_index, pattern):
     return skip, index
 
 
-def kleene(start, start_in, *ends_in):
+def kleene(start, start_in, *ends_in, flags):
     end = NDN()
     start.add("", start_in)
     start.add("", end)
@@ -99,7 +99,7 @@ def kleene(start, start_in, *ends_in):
     return end
 
 
-def concat(start, char):
+def concat(start, char, flags):
     new = NDN()
     start.add(char, new)
     return new

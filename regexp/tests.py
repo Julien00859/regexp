@@ -1,7 +1,21 @@
 import unittest
 from .automatons import NDFA, DFA, DCFA, DCMFA
+from .pattern import parse
 
-class TestPattern(unittest.TestCase):
+class MatchCase(unittest.TestCase):
+    def assertMatch(self, pattern, matchs, nomatchs, flags=0):
+        automaton = parse(pattern, flags)
+        for constructor in (NDFA, DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
+            automaton = constructor(automaton)
+            for string in matchs:
+                self.assertTrue(automaton.match(string),
+                    "{} should match {}".format(automaton.__class__.__name__, string))
+            for string in nomatchs:
+                self.assertFalse(automaton.match(string),
+                    "{} should not match {}".format(automaton.__class__.__name__, string))
+
+
+class TestPattern(MatchCase):
     def test_single(self):
         self.assertMatch("a", ["a"], ["b"])
 
@@ -49,14 +63,3 @@ class TestPattern(unittest.TestCase):
 
     def test_nested_groups(self):
         self.assertMatch("a(b(c(d)))", ["abcd"], [])
-
-    def assertMatch(self, pattern, matchs, nomatchs):
-        automaton = pattern
-        for constructor in (NDFA.from_pattern, DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
-            automaton = constructor(automaton)
-            for string in matchs:
-                self.assertTrue(automaton.match(string),
-                    "{} should match {}".format(automaton.__class__.__name__, string))
-            for string in nomatchs:
-                self.assertFalse(automaton.match(string),
-                    "{} should not match {}".format(automaton.__class__.__name__, string))
