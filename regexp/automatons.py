@@ -8,7 +8,9 @@ from .nodes import Node, NDN, DN, trap_node
 from .pattern import parse
 
 
-class Automaton:
+class FA:
+    """Abstract Finite Automaton"""
+
     def __init__(self, initial_node):
         self.initial_node = initial_node
 
@@ -36,7 +38,7 @@ class Automaton:
                 for node in show:
                     node.print_transitions()
                     seen.add(node)
-                    if isinstance(self, DA):
+                    if isinstance(self, DFA):
                         next_nodes.update(node.transitions.values())
                     else:
                         next_nodes.update(*node.transitions.values())
@@ -56,9 +58,11 @@ class Automaton:
             print(line)
 
     def __str__(self):
-        return "<{} on {}>".format(self.__class__.__name__, self.initial_node)
+        return "<{} {} on {}>".format(self.__class__.__name__, self.id, self.initial_node)
 
-class NonDeterministicAutomaton(Automaton):
+class NDFA(FA):
+    """Non Deterministic Finite Automaton"""
+
     def match(self, string):
         new_nodes = {self.initial_node}
         self._expand(new_nodes)
@@ -90,7 +94,9 @@ class NonDeterministicAutomaton(Automaton):
         return cls(parse(pattern))
 
 
-class DeterministicAutomaton(Automaton):
+class DFA(FA):
+    """Deterministic Finite Automaton"""
+
     def match(self, string):
         node = self.initial_node
         for letter in string:
@@ -101,11 +107,11 @@ class DeterministicAutomaton(Automaton):
 
     @classmethod
     def from_pattern(cls, pattern):
-        nda = super().from_pattern(pattern)
-        return cls.from_nda(nda)
+        nda = NDFA.from_pattern(pattern)
+        return cls.from_ndfa(nda)
 
     @classmethod
-    def from_nda(cls, nda):
+    def from_ndfa(cls, nda):
         r"""
         Pattern: a*b
                        /<-ε--\
@@ -168,7 +174,9 @@ class DeterministicAutomaton(Automaton):
         return cls(ndn_to_dn[initial_nodes])
 
 
-class DeterministicCompletedAutomaton(DeterministicAutomaton):
+class DCFA(DFA):
+    """Deterministic Completed Finite Automaton"""
+
     def match(self, string):
         node = self.initial_node
         for letter in string:
@@ -180,15 +188,15 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
     @classmethod
     def from_pattern(cls, pattern):
         da = super().from_pattern(pattern)
-        return cls.from_da(da)
+        return cls.from_dfa(da)
 
     @classmethod
-    def from_nda(cls, nda):
-        da = super().from_nda(pattern)
-        return cls.from_da(da)
+    def from_ndfa(cls, nda):
+        da = super().from_ndfa(nda)
+        return cls.from_dfa(da)
 
     @classmethod
-    def from_da(cls, da):
+    def from_dfa(cls, da):
         dca = cls(da.initial_node)
         seen = set()
         nodes = [dca.initial_node]
@@ -201,24 +209,26 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
         return dca
 
 
-class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton):
+class DCMFA(DCFA):
+    """Deterministic Completed Minimalist Finite Automaton"""
+
     @classmethod
     def from_pattern(cls, pattern):
         dca = super().from_pattern(pattern)
-        return cls.from_dca(dca)
+        return cls.from_dcfa(dca)
 
     @classmethod
-    def from_nda(cls, nda):
-        dca = super().from_nda(pattern)
-        return cls.from_dca(dca)
+    def from_ndfa(cls, nda):
+        dca = super().from_ndfa(nda)
+        return cls.from_dcfa(dca)
 
     @classmethod
-    def from_da(cls, da):
-        dca = super().from_da(pattern)
-        return cls.from_dca(cda)
+    def from_dfa(cls, da):
+        dca = super().from_dfa(da)
+        return cls.from_dcfa(dca)
 
     @classmethod
-    def from_dca(cls, dca):
+    def from_dcfa(cls, dca):
         # Gather automaton's nodes
         dca_nodes = set([dca.initial_node])
         new_nodes = set([dca.initial_node])
@@ -281,7 +291,8 @@ class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton)
         return cls(id_to_dcma[dca_to_id[dca.initial_node]])
 
 
-NDA = NonDeterministicAutomaton
-DA = DeterministicAutomaton
-DCA = DeterministicCompletedAutomaton
-DCMA = DeterministicCompletedMinimalistAutomaton
+FiniteAutomaton = FA
+NonDeterministicFiniteAutomaton = NDFA
+DeterministicFiniteAutomaton = DFA
+DeterministicCompletedFiniteAutomaton = DCFA
+DeterministicCompletedMinimalistFiniteAutomaton = DCMFA

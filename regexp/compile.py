@@ -1,11 +1,3 @@
-from .automatons import DCMA, DCA, DA, NDA
+from .automatons import DCMFA
 
-def compile(pattern):
-    automaton = NDA.from_pattern(pattern)
-    try:
-        automaton = DA.from_nda(automaton)
-        automaton = DCA.from_da(automaton)
-        automaton = DCMA.from_dca(automaton)
-    except NotImplementedError:
-        pass
-    return automaton
+compile = DCMFA.from_pattern

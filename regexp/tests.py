@@ -1,5 +1,5 @@
 import unittest
-from .automatons import NDA, DA, DCA, DCMA
+from .automatons import NDFA, DFA, DCFA, DCMFA
 
 class TestPattern(unittest.TestCase):
     def test_single(self):
@@ -52,7 +52,7 @@ class TestPattern(unittest.TestCase):
 
     def assertMatch(self, pattern, matchs, nomatchs):
         automaton = pattern
-        for constructor in (NDA.from_pattern, DA.from_nda, DCA.from_da, DCMA.from_dca):
+        for constructor in (NDFA.from_pattern, DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
             automaton = constructor(automaton)
             for string in matchs:
                 self.assertTrue(automaton.match(string),
