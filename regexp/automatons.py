@@ -100,6 +100,11 @@ class DeterministicAutomaton(Automaton):
         return node.is_final
 
     @classmethod
+    def from_pattern(cls, pattern):
+        nda = super().from_pattern(pattern)
+        return cls.from_nda(nda)
+
+    @classmethod
     def from_nda(cls, nda):
         r"""
         Pattern: a*b
@@ -173,6 +178,16 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
         return node.is_final
 
     @classmethod
+    def from_pattern(cls, pattern):
+        da = super().from_pattern(pattern)
+        return cls.from_da(da)
+
+    @classmethod
+    def from_nda(cls, nda):
+        da = super().from_nda(pattern)
+        return cls.from_da(da)
+
+    @classmethod
     def from_da(cls, da):
         dca = cls(da.initial_node)
         seen = set()
@@ -187,6 +202,21 @@ class DeterministicCompletedAutomaton(DeterministicAutomaton):
 
 
 class DeterministicCompletedMinimalistAutomaton(DeterministicCompletedAutomaton):
+    @classmethod
+    def from_pattern(cls, pattern):
+        dca = super().from_pattern(pattern)
+        return cls.from_dca(dca)
+
+    @classmethod
+    def from_nda(cls, nda):
+        dca = super().from_nda(pattern)
+        return cls.from_dca(dca)
+
+    @classmethod
+    def from_da(cls, da):
+        dca = super().from_da(pattern)
+        return cls.from_dca(cda)
+
     @classmethod
     def from_dca(cls, dca):
         # Gather automaton's nodes
