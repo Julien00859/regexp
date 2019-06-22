@@ -1,6 +1,6 @@
 import unittest
 from .automatons import NDFA, DFA, DCFA, DCMFA
-from .pattern import parse
+from .pattern import parse, IGNORE_CASE
 
 class MatchCase(unittest.TestCase):
     def assertMatch(self, pattern, matchs, nomatchs, flags=0):
@@ -63,3 +63,9 @@ class TestPattern(MatchCase):
 
     def test_nested_groups(self):
         self.assertMatch("a(b(c(d)))", ["abcd"], [])
+
+
+class TestFlags(MatchCase):
+    def test_ignore_case(self):
+        self.assertMatch("a", ["a"], ["A"], flags=0)
+        self.assertMatch("a", ["a", "A"], [], flags=IGNORE_CASE)

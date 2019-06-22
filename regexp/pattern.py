@@ -2,6 +2,8 @@ from itertools import tee, zip_longest
 from .char import SIGMA
 from .nodes import NDN
 
+IGNORE_CASE = 0b1
+
 class ParsingError(Exception):
     def __init__(self, message, pattern, index):
         substr = pattern[max(index-3, 0):min(index+3, len(pattern))]
@@ -102,4 +104,9 @@ def kleene(start, start_in, *ends_in, flags):
 def concat(start, char, flags):
     new = NDN()
     start.add(char, new)
+    if flags & IGNORE_CASE:
+        if "a" <= char <= "z":
+            start.add(chr(ord(char) - 32), new)
+        elif "A" <= char <= "A":
+            start.add(chr(ord(char) + 32), new)
     return new
