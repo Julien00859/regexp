@@ -3,7 +3,7 @@
 
 import unittest
 from regexp.automatons import NFA, DFA, DCFA, DCMFA
-from regexp.pattern import parse, IGNORE_CASE
+from regexp.pattern import parse, escape, IGNORE_CASE
 
 class MatchCase(unittest.TestCase):
     def assertMatch(self, pattern, matchs, nomatchs, flags=0):
@@ -72,3 +72,9 @@ class TestFlags(MatchCase):
     def test_ignore_case(self):
         self.assertMatch("a", ["a"], ["A"], flags=0)
         self.assertMatch("a", ["a", "A"], [], flags=IGNORE_CASE)
+
+
+class TestEscapce(unittest.TestCase):
+    def test_escape(self):
+        self.assertEqual(escape("abc123"), "abc123")
+        self.assertEqual(escape("a(bΣcεd)e\\f*g"), r"a\(b\Σc\εd\)e\\f\*g")

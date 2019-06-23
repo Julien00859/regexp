@@ -143,3 +143,13 @@ def parse(pattern: str, flags: int) -> NDN:
         return new
 
     return main()
+
+
+def escape(pattern: str) -> str:
+    """Escape the given pattern to match pure text instead of regexp"""
+    escaped = []
+    for char in pattern:
+        if char in {"*", "\\", "|", "ε", "(", ")", "Σ"}:
+            escaped.append("\\")
+        escaped.append(char)
+    return "".join(escaped)
