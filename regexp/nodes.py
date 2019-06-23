@@ -84,8 +84,8 @@ class DN(Node):
             print(" -->" if node.is_final else "")
 
 
+trap_node = DN(is_final=False)
+trap_node.add(SIGMA, trap_node)
+
 NonDeterministicNode = NDN
 DeterministicNode = DN
-
-trap_node = DeterministicNode(is_final=False)
-trap_node.add(SIGMA, trap_node)
