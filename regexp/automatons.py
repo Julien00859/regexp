@@ -1,9 +1,16 @@
+"""
+A finite automaton is a finite-state machine that accepts or rejects
+strings of symbols.
+"""
+
+
 from collections import defaultdict, OrderedDict
 from contextlib import redirect_stdout
 from io import StringIO
 from functools import partial
+from typing import Set
 
-from .char import SIGMA
+from .char import SIGMA, Character
 from .nodes import Node, NDN, DN, trap_node
 from .pattern import parse
 
@@ -11,21 +18,26 @@ from .pattern import parse
 class FA:
     """Abstract Finite Automaton"""
 
-    def __init__(self, initial_node):
+    def __init__(self, initial_node: Node):
+        """Create an automaton using the initial_node as entry point"""
         self.initial_node = initial_node
 
     @property
-    def id(self):
+    def id(self) -> int:
+        """Automaton unique identifier"""
         return self.initial_node.id
 
     @property
-    def first_characters(self):
+    def first_characters(self) -> Set[Character]:
+        """Get the transition characters of the starting node"""
         return set(self.initial_node.transitions.keys())
 
-    def match(self, string):
+    def match(self, string: str) -> bool:
+        """Accept or reject the given string"""
         raise NotImplementedError("abstract method")
 
-    def print_mesh(self):
+    def print_mesh(self) -> None:
+        """Pretty print the current automaton"""
         buffer_ = StringIO()
 
         # Feed the buffer with the tree
@@ -61,9 +73,19 @@ class FA:
         return "<{} {} on {}>".format(self.__class__.__name__, self.id, self.initial_node)
 
 class NDFA(FA):
-    """Non Deterministic Finite Automaton"""
+    """
+    Non Deterministic Finite Automaton
 
-    def match(self, string):
+    A NDFA is made of :func:`Non Deterministic Nodes <regexp.nodes.NDA>`,
+    they accept both void transition characters and same transition
+    character targeting different nodes.
+    
+    There is a systematic mapping between :func:`~regexp.pattern`
+    expression and a NDFA but they are inefficient in term of matching.
+    """
+
+    def match(self, string: str) -> bool:
+        """Accept or reject the given string"""
         new_nodes = {self.initial_node}
         self._expand(new_nodes)
         for char in string:
@@ -78,7 +100,11 @@ class NDFA(FA):
         return any(map(lambda n: n.is_final, new_nodes))
 
     @staticmethod
-    def _expand(nodes):
+    def _expand(nodes: Set[NDN]) -> None:
+        """
+        Update the current set of nodes to includes nodes reached by
+        following void transitions on the current (+updated) nodes
+        """
         new_nodes = nodes.copy()
         while True:
             next_nodes = set()
@@ -90,14 +116,27 @@ class NDFA(FA):
             nodes.update(new_nodes)
 
     @classmethod
-    def from_pattern(cls, pattern, flags):
+    def from_pattern(cls, pattern: str, flags: int) -> "NDFA":
+        """Create a NDFA out of a regexp pattern"""
         return cls(parse(pattern, flags=0))
 
 
 class DFA(FA):
-    """Deterministic Finite Automaton"""
+    """
+    Deterministic Finite Automaton
 
-    def match(self, string):
+    A DFA is made of :func:`Deterministic Node <regexp.nodes.DN>`, they
+    don't accept nor void transitions nor same transition character
+    targeting different nodes.
+
+    It is possible to determine a
+    :func:`Non Deterministic Automaton <regexp.automatons.NDFA>`
+    and it provides an efficiant :func:`<regexp.automatons.DFA.match>`
+    method.
+    """
+
+    def match(self, string: str) -> bool:
+        """Accept or reject the given string"""
         node = self.initial_node
         for letter in string:
             node = node.read(letter)
@@ -106,30 +145,32 @@ class DFA(FA):
         return node.is_final
 
     @classmethod
-    def from_pattern(cls, pattern, flags):
+    def from_pattern(cls, pattern: str, flags: int) -> "DFA":
+        """Create a DFA out of a regexp pattern"""
         nda = NDFA.from_pattern(pattern, flags)
         return cls.from_ndfa(nda)
 
     @classmethod
-    def from_ndfa(cls, nda):
-        r"""
-        Pattern: a*b
-                       /<-ε--\
-        NDA: (0)--ε->(1)--a->(2)--ε->(3)--b->(4)->
-               \----------ε--------->/
+    def from_ndfa(cls, nda: NDFA) -> "DFA":
+        """Create a DFA out of a NDFA"""
 
-        Derivation table:    nodes  |    a    |  b
-                           ----------+---------+-----
-                            {0,1,3} | {1,2,3} | {4}
-                            {1,2,3} | {1,2,3} | {4}
-                              {4}   |         |
+        # Pattern: a*b
+        #                 /<-ε--\
+        # NDFA: (0)--ε->(1)--a->(2)--ε->(3)--b->(4)->
+        #         \----------ε--------->/
+        #
+        # Derivation table:    nodes  |    a    |  b
+        #                    ---------+---------+-----
+        #                     {0,1,3} | {1,2,3} | {4}
+        #                     {1,2,3} | {1,2,3} | {4}
+        #                       {4}   |         |
+        #
+        # ndn_to_dn: {{0,1,3}: {5}, {1,2,3}: {6}, {4}: {7}}
+        #
+        #             \<a-/
+        # DA: (5)--a-->(6)--b-->(7)
+        #       \-------b------>/
 
-        ndn_to_dn: {{0,1,3}: {5}, {1,2,3}: {6}, {4}: {7}}
-
-                    \<a-/
-        DA: (5)--a-->(6)--b-->(7)
-              \-------b------>/
-        """
         initial_nodes = {nda.initial_node}
         nda._expand(initial_nodes)
         initial_nodes = frozenset(initial_nodes)
@@ -175,9 +216,23 @@ class DFA(FA):
 
 
 class DCFA(DFA):
-    """Deterministic Completed Finite Automaton"""
+    """
+    Deterministic Completed Finite Automaton
 
-    def match(self, string):
+    A DCFA is a DFA whose all nodes have transitions for the entire
+    alphabet.
+
+    It is possible to complete a DFA by adding a *trap node* made of a
+    single *catch all* transition targeting itself then to add a *catch
+    all* transition targing that particular node on all other nodes.
+
+    Such automatons are pretty useless by themself but facilitate  the
+    creation of :func:`Minimalist Automatons <regexp.automatons.DCMFA>`
+    and :func:`Inverted Automatons <regexp.automatons.DCIFA>`.
+    """
+
+    def match(self, string: str) -> bool:
+        """Accept or reject the given string"""
         node = self.initial_node
         for letter in string:
             node = node.read(letter)
@@ -186,17 +241,20 @@ class DCFA(DFA):
         return node.is_final
 
     @classmethod
-    def from_pattern(cls, pattern, flags):
+    def from_pattern(cls, pattern: str, flags: int) -> "DCFA":
+        """Create a DCFA out of a regexp pattern"""
         da = super().from_pattern(pattern, flags)
         return cls.from_dfa(da)
 
     @classmethod
-    def from_ndfa(cls, nda):
+    def from_ndfa(cls, nda: NDFA) -> "DCFA":
+        """Create a DCFA out of a NDFA"""
         da = super().from_ndfa(nda)
         return cls.from_dfa(da)
 
     @classmethod
-    def from_dfa(cls, da):
+    def from_dfa(cls, da: DFA) -> "DCFA":
+        """Create a DCFA out of a DFA"""
         dca = cls(da.initial_node)
         seen = set()
         nodes = [dca.initial_node]
@@ -210,25 +268,33 @@ class DCFA(DFA):
 
 
 class DCMFA(DCFA):
-    """Deterministic Completed Minimalist Finite Automaton"""
+    """
+    Deterministic Completed Minimalist Finite Automaton
+
+    A DCMFA is the smallest (made of the least nodes) automaton capable
+    of matching a given pattern. They are memory efficient.
+
+    It is possible to minimize a
+    :func:`Completed Automaton <regexp.automatons.DCFA>`.
+    """
 
     @classmethod
-    def from_pattern(cls, pattern, flags):
+    def from_pattern(cls, pattern: str, flags: int) -> "DCMFA":
         dca = super().from_pattern(pattern, flags)
         return cls.from_dcfa(dca)
 
     @classmethod
-    def from_ndfa(cls, nda):
+    def from_ndfa(cls, nda: NDFA) -> "DCMFA":
         dca = super().from_ndfa(nda)
         return cls.from_dcfa(dca)
 
     @classmethod
-    def from_dfa(cls, da):
+    def from_dfa(cls, da: DFA) -> "DCMFA":
         dca = super().from_dfa(da)
         return cls.from_dcfa(dca)
 
     @classmethod
-    def from_dcfa(cls, dca):
+    def from_dcfa(cls, dca: DCFA) -> "DCMFA":
         # Gather automaton's nodes
         dca_nodes = set([dca.initial_node])
         new_nodes = set([dca.initial_node])
@@ -291,8 +357,17 @@ class DCMFA(DCFA):
         return cls(id_to_dcma[dca_to_id[dca.initial_node]])
 
 
+class DCIFA(DCFA):
+    """Deterministic Completed Inverted Finite Automaton"""
+
+    def match(self, string: str) -> bool:
+        """Accept or reject the given string"""
+        return not super().match(string)
+
+
 FiniteAutomaton = FA
 NonDeterministicFiniteAutomaton = NDFA
 DeterministicFiniteAutomaton = DFA
 DeterministicCompletedFiniteAutomaton = DCFA
 DeterministicCompletedMinimalistFiniteAutomaton = DCMFA
+DeterministicCompletedInvertedFiniteAutomaton = DCIFA

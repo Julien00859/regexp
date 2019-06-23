@@ -1,13 +1,18 @@
+""""""
+
+
 from collections import defaultdict
-from typing import MutableMapping, Any
+from typing import MutableMapping, Set, Any
 from .char import SIGMA, Character, char_to_str
 
 
 class Node:
+    """Abstract Node"""
+
     count = 0
     transitions: MutableMapping[Character, Any]
 
-    def __init__(self, is_final):
+    def __init__(self, is_final: bool):
         self.is_final = is_final
         self.id = Node.count
         Node.count += 1
@@ -21,62 +26,66 @@ class Node:
             self.id,
             ", ".join(map(char_to_str, self.transitions)))
 
-    def read(self, char):
+    def read(self, char: str) -> Any:
         raise NotImplementedError("abstract method")
 
-    def add(self, char, node):
+    def add(self, char: Character, node: "Node") -> None:
         raise NotImplementedError("abstract method")
 
-    def print_transitions(self):
+    def print_transitions(self) -> None:
         raise NotImplementedError("abstract method")
 
     def __hash__(self):
         return self.id
 
 
-class NonDeterministicNode(Node):
+class NDN(Node):
+    """Non Deterministic Node"""
+
+    transitions: MutableMapping[Character, Set[Node]]
+
     def __init__(self, is_final=False):
         super().__init__(is_final)
         self.transitions = defaultdict(set)
 
-    def read(self, char):
+    def read(self, char: str) -> Set[Node]:
         return self.transitions.get(char, set())
 
-    def add(self, *pairs):
-        assert len(pairs) % 2 == 0
-        ipairs = iter(pairs)
-        for char, node in zip(ipairs, ipairs):
-            self.transitions[char].add(node)
+    def add(self, char: Character, node: Node) -> None:
+        self.transitions[char].add(node)
 
-    def print_transitions(self):
+    def print_transitions(self) -> None:
         for char, nodes in self.transitions.items():
             for node in nodes:
-                print(self, char_to_str(char), node, "-->" if node.is_final else "")
+                print(self, char_to_str(char), node, end="")
+                print(" -->" if node.is_final else "")
 
 
-class DeterministicNode(Node):
-    def __init__(self, is_final):
+class DN(Node):
+    """Deterministic Node"""
+
+    transitions: MutableMapping[Character, Node]
+
+    def __init__(self, is_final: bool):
         super().__init__(is_final)
         self.transitions = dict()
 
-    def read(self, char):
+    def read(self, char: str) -> Node:
         return self.transitions.get(char) or self.transitions.get(SIGMA)
 
-    def add(self, *pairs):
-        assert len(pairs) % 2 == 0
-        ipairs = iter(pairs)
-        for char, node in zip(ipairs, ipairs):
-            if char == "":
-                raise ValueError("Cannot have empty transition.")
-            self.transitions[char] = node
+    def add(self, char: Character, node: Node) -> None:
+        if char == "":
+            raise ValueError("Cannot have empty transition.")
+        self.transitions[char] = node
 
-    def print_transitions(self):
+    def print_transitions(self) -> None:
         for char, node in self.transitions.items():
-            print(self, char_to_str(char), node, "-->" if node.is_final else "")
+            print(self, char_to_str(char), node, end="")
+            print(" -->" if node.is_final else "")
 
+
+NonDeterministicNode = NDN
+DeterministicNode = DN
 
 trap_node = DeterministicNode(is_final=False)
 trap_node.add(SIGMA, trap_node)
-
-NDN = NonDeterministicNode
-DN = DeterministicNode
