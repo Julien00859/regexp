@@ -2,13 +2,13 @@
 
 
 import unittest
-from regexp.automatons import NDFA, DFA, DCFA, DCMFA
+from regexp.automatons import NFA, DFA, DCFA, DCMFA
 from regexp.pattern import parse, IGNORE_CASE
 
 class MatchCase(unittest.TestCase):
     def assertMatch(self, pattern, matchs, nomatchs, flags=0):
         automaton = parse(pattern, flags)
-        for constructor in (NDFA, DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
+        for constructor in (NFA, DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
             automaton = constructor(automaton)
             for string in matchs:
                 self.assertTrue(automaton.match(string),
