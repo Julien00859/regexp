@@ -1,6 +1,9 @@
+"""Test automaton generation and matching from regexp pattern"""
+
+
 import unittest
-from .automatons import NDFA, DFA, DCFA, DCMFA
-from .pattern import parse, IGNORE_CASE
+from regexp.automatons import NDFA, DFA, DCFA, DCMFA
+from regexp.pattern import parse, IGNORE_CASE
 
 class MatchCase(unittest.TestCase):
     def assertMatch(self, pattern, matchs, nomatchs, flags=0):
