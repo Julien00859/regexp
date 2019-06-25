@@ -3,7 +3,7 @@
 
 import unittest
 from regexp.automatons import NFA, DFA, DCFA, DCMFA
-from regexp.pattern import parse, escape, IGNORE_CASE
+from regexp.pattern import parse, expand, escape, IGNORE_CASE
 
 class MatchCase(unittest.TestCase):
     def assertMatch(self, pattern, matchs, nomatchs, flags=0):
@@ -78,3 +78,22 @@ class TestEscapce(unittest.TestCase):
     def test_escape(self):
         self.assertEqual(escape("abc123"), "abc123")
         self.assertEqual(escape("a(bΣcεd)e\\f*g"), r"a\(b\Σc\εd\)e\\f\*g")
+
+
+class TestExtend(unittest.TestCase):
+    def test_expend_identity(self):
+        self.assertEqual(expand(r"abc123"), r"abc123")
+        self.assertEqual(expand(r"\[abc123\]"), r"\[abc123\]")
+
+    def test_choice(self):
+        self.assertEqual(expand(r"[abc123]"), r"(a|b|c|1|2|3)")
+        self.assertEqual(expand(r"[()[\]*\\Σε]"), r"(\(|\)|[|]|\*|\|\Σ|\ε)")
+
+    def test_range(self):
+        self.assertEqual(expand(r"[0-9]"), r"(0|1|2|3|4|5|6|7|8|9)")
+        self.assertEqual(expand(r"[a-z]"),
+            r"(a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)")
+        self.assertEqual(expand(r"[3-6b-d]"), r"(3|4|5|6|b|c|d)")
+
+    def test_mix(self):
+        self.assertEqual(expand(r"[3-6b-dZE*]"), r"(3|4|5|6|b|c|d|Z|E|\*)")

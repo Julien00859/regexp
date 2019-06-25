@@ -153,3 +153,59 @@ def escape(pattern: str) -> str:
             escaped.append("\\")
         escaped.append(char)
     return "".join(escaped)
+
+
+def expand(extended_pattern: str) -> str:
+    r"""
+    Expand the given extended pattern to be compatible with
+    :func:`<regexp.pattern.parse>` grammar.
+
+    Supported extended sequences are:
+
+    * ``[abc]``, single choice, expand to ``(a|b|c)``
+    * ``[0-9]``, range choice, expand to ``(0|1|2|3|4|5|6|7|8|9)``
+    """
+    p1, p2 = tee(extended_pattern)
+    p1, p3 = tee(extended_pattern)
+    next(p2)
+    next(p3)
+    next(p3)
+    iteratee = zip_longest(p1, p2, p3)
+    expanded_pattern = []
+
+    escape_ = False
+    skip = 0
+    expanding = False
+    expansion = []
+    for idx, (char, next_char, next_next_char) in enumerate(iteratee):
+        if skip:
+            skip -= 1
+        elif expanding:
+            if escape_:
+                escape_ = False
+                expansion.append(char)
+            elif char == "\\":
+                escape_ = True
+            elif next_char == '-':
+                skip = 2
+                ord_range = range(ord(char), ord(next_next_char) + 1)
+                chars = [escape(chr(c)) for c in ord_range]
+                expansion.extend(chars)
+            elif char == "]":
+                expanding = False
+                expanded_pattern.extend(list("(%s)" % "|".join(expansion)))
+                expansion = []
+            else:
+                expansion.append(escape(char))
+        elif escape_:
+            escape_ = False
+            expanded_pattern.append(escape(char))
+        elif char == "\\":
+            escape_ = True
+            expanded_pattern.append(char)
+        elif char == "[":
+            expanding = True
+        else:
+            expanded_pattern.append(char)
+
+    return "".join(expanded_pattern)
