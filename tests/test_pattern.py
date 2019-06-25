@@ -97,3 +97,15 @@ class TestExtend(unittest.TestCase):
 
     def test_mix(self):
         self.assertEqual(expand(r"[3-6b-dZE*]"), r"(3|4|5|6|b|c|d|Z|E|\*)")
+
+    def test_space(self):
+        self.assertEqual(expand(r"\s"), "( |\n|\r|\t)")
+
+    def test_digit(self):
+        self.assertEqual(expand(r"\d"), r"(0|1|2|3|4|5|6|7|8|9)")
+
+    def test_letter(self):
+        self.assertEqual(expand(r"\w"),
+            r"(a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z"
+            r"|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z"
+            r"|0|1|2|3|4|5|6|7|8|9|_)")

@@ -163,8 +163,12 @@ def expand(extended_pattern: str) -> str:
     Supported extended sequences are:
 
     * ``[abc]``, single choice, expand to ``(a|b|c)``
-    * ``[0-9]``, range choice, expand to ``(0|1|2|3|4|5|6|7|8|9)``
+    * ``[0-5]``, range choice, expand to ``(0|1|2|3|4|5)``
+    * ``\s``, any space, expand to ``( |\n|\r|\t)``
+    * ``\d``, any digit, equivalent to ``[0-9]``
+    * ``\w``, any letter, equivalent to ``[a-zA-Z0-9_]``
     """
+
     p1, p2 = tee(extended_pattern)
     p1, p3 = tee(extended_pattern)
     next(p2)
@@ -193,7 +197,7 @@ def expand(extended_pattern: str) -> str:
                 expansion.extend(chars)
             elif char == "]":
                 expanding = False
-                expanded_pattern.extend(list("(%s)" % "|".join(expansion)))
+                expanded_pattern.extend("(%s)" % "|".join(expansion))
                 expansion = []
             else:
                 expansion.append(escape(char))
@@ -201,11 +205,21 @@ def expand(extended_pattern: str) -> str:
             escape_ = False
             expanded_pattern.append(escape(char))
         elif char == "\\":
-            escape_ = True
-            expanded_pattern.append(char)
+            expansion = _tokens.get(next_char)
+            if expansion:
+                skip = 1
+                expanded_pattern.extend(expansion)
+            else:
+                escape_ = True
+                expanded_pattern.append(char)
         elif char == "[":
             expanding = True
         else:
             expanded_pattern.append(char)
 
     return "".join(expanded_pattern)
+
+_tokens = {
+    "s": "( |\n|\r|\t)",
+    "d": expand(r"[0-9]"),
+    "w": expand(r"[a-zA-Z0-9_]"),}
