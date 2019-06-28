@@ -35,6 +35,20 @@ class FA:
     def match(self, string: str) -> bool:
         """Accept or reject the given string"""
         raise NotImplementedError("abstract method")
+    
+    def read_greedy(self, string: str) -> int:
+        """
+        Read the string as long as it matches
+        :returns: #char read at last final node
+        """
+        raise NotImplementedError("abstract method")
+
+    def read_lazy(self, string: str) -> int:
+        """
+        Read the string until it reads a final node
+        :return: #char read at last final node
+        """
+        raise NotImplementedError("abstract method")
 
     def print_mesh(self) -> None:
         """Pretty print the current automaton"""
@@ -98,6 +112,12 @@ class NFA(FA):
                 return False
         return any(map(lambda n: n.is_final, new_nodes))
 
+    def read_greedy(self, string: str) -> int:
+        raise NotImplementedError()
+
+    def read_lazy(self, string: str) -> int:
+        raise NotImplementedError()
+
     @staticmethod
     def _expand(nodes: Set[NDN]) -> None:
         """
@@ -143,6 +163,31 @@ class DFA(FA):
             if node is self._dead_node:
                 return False
         return node.is_final
+
+    def read_greedy(self, string: str) -> int:
+        node = self.initial_node
+        length = 0
+        last_final_node = 0
+
+        for letter in string:
+            node = node.read(letter)
+            if node is self._dead_node:
+                break
+            length += 1
+            if node.is_final:
+                last_final_node = length
+        return last_final_node
+
+    def read_lazy(self, string: str) -> int:
+        node = self.initial_node
+        length = 0
+        for letter in string:
+            node = node.read(letter)
+            if node is self._dead_node:
+                return 0
+            length += 1
+            if node.is_final:
+                return length
 
     @classmethod
     def from_pattern(cls, pattern: str, flags: int) -> "DFA":
@@ -344,7 +389,7 @@ class DCMFA(DCFA):
         dca_to_id = nodes
 
         # Create nodes for new automaton
-        id_to_dcma = {dca_to_id[node]: DN(node.is_final) for node in dca_nodes}
+        id_to_dcma = {dca_to_id[node]: DN.duplicate(node) for node in dca_nodes}
 
         # Link DCMA nodes
         seen_ids = set()

@@ -35,6 +35,13 @@ class Node:
     def print_transitions(self) -> None:
         raise NotImplementedError("abstract method")
 
+    @classmethod
+    def duplicate(cls, node):
+        """Create a new node with the same is_final state as the given node"""
+        if node is trap_node:
+            return trap_node
+        return cls(node.is_final)
+
     def __hash__(self):
         return self.id
 
