@@ -132,11 +132,15 @@ class DFA(FA):
     :func:`<regexp.automatons.DFA.match>` method.
     """
 
+    @property
+    def _dead_node(self):
+        return None
+
     def match(self, string: str) -> bool:
         node = self.initial_node
         for letter in string:
             node = node.read(letter)
-            if node is None:
+            if node is self._dead_node:
                 return False
         return node.is_final
 
@@ -228,13 +232,9 @@ class DCFA(DFA):
     and :func:`Inverted Automatons <regexp.automatons.DCIFA>`.
     """
 
-    def match(self, string: str) -> bool:
-        node = self.initial_node
-        for letter in string:
-            node = node.read(letter)
-            if node is trap_node:
-                return False
-        return node.is_final
+    @property
+    def _dead_node(self):
+        return trap_node
 
     @classmethod
     def from_pattern(cls, pattern: str, flags: int) -> "DCFA":
