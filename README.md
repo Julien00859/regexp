@@ -16,13 +16,18 @@ group zero, one or multiple times.
 * `ε`, epsilon. Used as bypass, read nothing.
 * `\`, escape. Used to use the next character as-is.
 
+Available *extended* sequences are:
+* `[abc]`, expand to `(a|b|c)`
+* `[1-5]`, expand to `(1|2|3|4|5)`
+* `\s`, expand to `( |\n|\r|\t)`
+* `\d`, expand to `[0-9]`
+* `\w`, expand to `[a-zA-Z0-9_]`
+
 Not available sequences are:
 
 * `+`, match one or multiple times. Can be achieved by prefixing the
 character to a kleene: `aa*`.
 * `?`, match zero or one time. Can be achieved using epsilon: `(a|ε)`
-* `[0-9]`, match any character from 0 to 9. Can be achieved by writing
-to full sequence: `(0|1|2|3|4|5|6|7|8|9)`
 * `{n}`, match exactly `n` times. Can be achieved by concatenate `n`
 times the group or character.
 * `{n,m}`, match between `n` and `m` times. Can be achieved with `n`
@@ -32,7 +37,7 @@ Example: `0b(0|1)(0|1)*` matches python binary numbers.
 
 ## Usage
 
-	usage: regexp [-h] [-q] [-f] regexp files [files ...]
+	usage: regexp [-h] [-q] [-x] regexp files [files ...]
 
 	positional arguments:
 	  regexp           Pattern to use
@@ -41,4 +46,4 @@ Example: `0b(0|1)(0|1)*` matches python binary numbers.
 	optional arguments:
 	  -h, --help       show this help message and exit
 	  -q, --quiet      Don't output lines found
-	  -f, --fullmatch  Match the pattern against a full line
+	  -x, --fullmatch  Match the pattern against a full line
