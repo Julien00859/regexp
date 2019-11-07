@@ -23,8 +23,8 @@ def parse(pattern: str, flags: int) -> NDN:
       of the available choices.
     * ``*``, kleene star. Used for repetition, match the last character
       or group zero, one or multiple times.
-    * ``Σ``, sigma. Used as catchall, represent the entire alphabet.
-    * ``ε``, epsilon. Used as bypass, void transition.
+    * ``Σ``, sigma. Used as catchall, represent the entire alphabet. Alias: .
+    * ``ε``, epsilon. Used as bypass, void transition. Alias: ?
     * ``\``, escape. Use the next character as-is.
 
     Not available sequences are:
@@ -108,8 +108,8 @@ def parse(pattern: str, flags: int) -> NDN:
                 last_node.add("", end)
                 last_node = kleene_start
 
-            elif char != "ε":
-                char_ = SIGMA if char == "Σ" else char
+            elif char not in ("ε", "?"):
+                char_ = SIGMA if char in ("Σ", ".") else char
                 if next_char == "*":
                     start_in = NDN()
                     end_in = concat(start_in, char_)
@@ -149,7 +149,7 @@ def escape(pattern: str) -> str:
     """Escape the given pattern to match pure text instead of regexp"""
     escaped = []
     for char in pattern:
-        if char in {"*", "\\", "|", "ε", "(", ")", "Σ"}:
+        if char in {"*", "\\", "|", "ε", "?", "(", ")", "Σ", "."}:
             escaped.append("\\")
         escaped.append(char)
     return "".join(escaped)

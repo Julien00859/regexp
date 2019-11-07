@@ -12,7 +12,7 @@ from typing import Set
 
 from .char import SIGMA, Character
 from .nodes import Node, NDN, DN, trap_node
-from .pattern import parse
+from .pattern import parse, expand
 
 
 class FA:
@@ -35,7 +35,7 @@ class FA:
     def match(self, string: str) -> bool:
         """Accept or reject the given string"""
         raise NotImplementedError("abstract method")
-    
+
     def read_greedy(self, string: str) -> int:
         """
         Read the string as long as it matches
@@ -93,7 +93,7 @@ class NFA(FA):
     A NFA is made of :func:`Non Deterministic Nodes <regexp.nodes.NDA>`,
     they accept both void transition characters and same transition
     character targeting different nodes.
-    
+
     There is a systematic mapping between :func:`~regexp.pattern`
     expression and a NFA but they are inefficient in term of matching.
     """
@@ -138,6 +138,10 @@ class NFA(FA):
     def from_pattern(cls, pattern: str, flags: int) -> "NFA":
         """Create a NFA out of a regexp pattern"""
         return cls(parse(pattern, flags=0))
+
+    @classmethod
+    def from_extended_pattern(cls, pattern: str, flags: int) -> "NFA":
+        return cls.from_pattern(expand(pattern), flags)
 
 
 class DFA(FA):

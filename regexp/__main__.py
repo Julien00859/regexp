@@ -19,12 +19,7 @@ parser.add_argument("-v", "--verbose", dest="verbose", action="store_const", con
                     help="Debug mode, print generated automaton")
 parser.add_argument("-i", "--ignore-case", action="store_const", const=IGNORE_CASE, default=0,
                     help="Ignore case distinctions")
-parser.add_argument("-d", "--dot-as-sigma", action="store_const", const=True, default=False,
-                    help="Replace all '.' by 'Σ' in the pattern")
 args = parser.parse_args()
-
-if args.dot_as_sigma:
-    args.regexp = args.regexp.replace(".", "Σ")
 
 if not args.fullmatch:
     if not args.regexp.startswith("Σ*"):
@@ -33,7 +28,7 @@ if not args.fullmatch:
         args.regexp = "%sΣ*" % args.regexp
 
 automaton = args.regexp
-for construct in (partial(NFA.from_pattern, flags=args.ignore_case), DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
+for construct in (partial(NFA.from_extended_pattern, flags=args.ignore_case), DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
     automaton = construct(automaton)
     if args.verbose:
         print(automaton.__doc__.strip().splitlines()[0])
