@@ -6,7 +6,7 @@ from os.path import isfile
 from string import ascii_uppercase
 from sys import exit as sys_exit
 from .automatons import DCMFA, DCFA, DFA, NFA
-from .pattern import IGNORE_CASE
+from .pattern import IGNORE_CASE, expand
 
 parser = ArgumentParser()
 parser.add_argument("regexp", help="Pattern to use")
@@ -28,6 +28,7 @@ if not args.fullmatch:
         args.regexp = "%sΣ*" % args.regexp
 
 automaton = args.regexp
+print(expand(automaton))
 for construct in (partial(NFA.from_extended_pattern, flags=args.ignore_case), DFA.from_ndfa, DCFA.from_dfa, DCMFA.from_dcfa):
     automaton = construct(automaton)
     if args.verbose:
