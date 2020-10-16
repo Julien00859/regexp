@@ -1,8 +1,6 @@
-
-
 OR: "or"i
 AND: "and"i
-NOT_: "not"i
+NOT: "not"i
 
 EQ: "=="
 NE: "!="
@@ -11,9 +9,9 @@ LE: "<="
 GT: ">"
 GE: ">="
 
-OR_: "|"
+BWOR: "|"
 XOR: "^"
-AND_: "&"
+BWAND: "&"
 LSHIFT: "<<"
 RSHIFT: ">>"
 INVERT: "~"
@@ -30,26 +28,30 @@ POW: "**"
 TRUE: "true"i
 FALSE: "false"i
 
-HEX_DIGIT: /[0-9a-f][0-9a-f]*/i
-DEC_DIGIT: /[0-9][0-9]*/
-OCT_DIGIT: /[0-7][0-7]*/
-BIN_DIGIT: /[01][01]*/
+HEX_DIGITS: /[0-9a-f][0-9a-f]*/i
+DEC_DIGITS: /[0-9][0-9]*/
+OCT_DIGITS: /[0-7][0-7]*/
+BIN_DIGITS: /[01][01]*/
 
 HEX: "0x"i
 OCT: "0o"i
 BIN: "0b"i
 
+LPAR: "("
+RPAR: ")"
+
+
 expression: logical_or
 
 logical_or: logical_or OR logical_and | logical_and
-logical_and: logical_and AND | logical_not
-logical_not: NOT_ logical_not | comparison
+logical_and: logical_and AND logical_not | logical_not
+logical_not: NOT logical_not | comparison
 
 comparison: comparison compop bitwise_or | bitwise_or
 
-bitwise_or: bitwise_or OR_ bitwise_xor | bitwise_xor
+bitwise_or: bitwise_or BWOR bitwise_xor | bitwise_xor
 bitwise_xor: bitwise_xor XOR bitwise_and | bitwise_and
-bitwise_and: bitwise_and AND_ bitwise_shift | bitwise_shift
+bitwise_and: bitwise_and BWAND bitwise_shift | bitwise_shift
 bitwise_shift: bitwise_shift shiftop bitwise_neg | bitwise_neg
 bitwise_neg: INVERT bitwise_neg | arith_sign
 
