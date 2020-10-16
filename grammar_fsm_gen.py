@@ -13,8 +13,8 @@ import regexp
 logger = logging.getLogger("regexp")
 logger.addHandler(logging.NullHandler())
 
-termre = regexp.compile(r"[A-Z_][A-Z0-9_]*")
-nontermre = regexp.compile(r"[a-z_][a-z0-9_]*")
+termre = regexp.compile(r"[A-Z][A-Z0-9_]*")
+nontermre = regexp.compile(r"[a-z][a-z0-9_]*")
 stringre = regexp.compile(r'".*"(i|ε)')
 patternre = regexp.compile(r"/.*/(i|ε)")
 
@@ -47,20 +47,20 @@ class Line:
         l = list(self.rule)
         l.insert(self.index, "⋅")
         return self.rule_no + ": " + " ".join(l)
-    
 
-def load_grammar(file):
+
+def load_grammar(path):
     terminals = {}
     rules = defaultdict(list)
 
-    with open(file, "r") as fd:
+    with open(path, "r") as fd:
         for line in fd:
             try:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
 
-                lhs, rhs = line.split(":")
+                lhs, _, rhs = line.partition(":")
                 lhs = lhs.strip()
                 rhs = rhs.strip()
 
@@ -96,7 +96,7 @@ def load_grammar(file):
                             if not termre.match(token) and not nontermre.match(token):
                                 raise SyntaxError(token)
                         rules[lhs].append(tokens)
-                    
+
                 else:
                     raise SyntaxError(lhs)
             except Exception:
@@ -194,7 +194,11 @@ class Table:
             f"→ {symbol} T{table.id}"
             for symbol, table in self.forward_links.items()
         ]
-        rules = [str(line) for line in self.lines]
+
+        rls = list(globalrules)
+        lines = sorted(self.lines, key=lambda line: rls.index(line.rule_no))
+        rules = [str(line) for line in lines]
+
 
         lru = max(map(len, rules), default=0)
         lfr = max(map(len, froms), default=0)
@@ -238,7 +242,7 @@ def build_fsm(rules, start):
         new_tb = set(fsm.keys()) - known_tb
 
     return list(fsm.values())
-    
+
 
 def lr_derivation(tables):
     # (pop, read, push)
@@ -263,20 +267,25 @@ def lr_derivation(tables):
             if line.point_end and line.rule_no != "s":
                 for combo in reduce((table,), line.rule, line.index - 1):
                     transitions.append((tuple([tb.id for tb in combo]), "", (combo[0].id, combo[0].forward_links[line.rule_no].id)))
-                
     return transitions
 
 
 
 def main():
+    from pprint import pprint
     if len(sys.argv) < 2:
         sys.exit("usage: python3.8 %s <BNF file>" % __file__)
 
+    global globalrules
     terminals, rules, entryrule = load_grammar(sys.argv[1])
+    globalrules = rules
     rules["s"] = [entryrule]
     nodes = build_fsm(rules, Line("s", (entryrule,), 0))
 
-    it = iter(sorted(list(map(str, nodes)), key=len))
+    pprint(terminals)
+    pprint(rules)
+
+    it = iter(list(map(str, nodes)))
     for a, b, c in zip_longest(it, it, it):
         filla, fillb, fillc = [" " * x.index("\n") if x else "" for x in [a, b, c]]
         for aa, bb, cc in zip_longest(*[x.splitlines(keepends=False) if x else "" for x in [a, b, c]]):
@@ -287,7 +296,6 @@ def main():
     for left in it:
         print(left)
 
-    from pprint import pprint
     pprint(lr_derivation(nodes))
 
 if __name__ == '__main__':
