@@ -68,6 +68,7 @@ def parse(pattern: str, flags: int) -> NDN:
         start.add("", kleene_start)
         last_node = kleene_start
         last_nodes = []
+        index = start_index
 
         for delta_index, (char, next_char) in enumerate(iteratee):
             index = start_index + delta_index
@@ -171,9 +172,12 @@ def expand(extended_pattern: str) -> str:
 
     p1, p2 = tee(extended_pattern)
     p1, p3 = tee(extended_pattern)
-    next(p2)
-    next(p3)
-    next(p3)
+    try:
+        next(p2)
+        next(p3)
+        next(p3)
+    except StopIteration:
+        pass
     iteratee = zip_longest(p1, p2, p3)
     expanded_pattern = []
 

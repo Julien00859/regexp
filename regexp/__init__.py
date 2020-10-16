@@ -1,2 +1,2 @@
 from .compile import compile
-from .pattern import IGNORE_CASE
+from .pattern import escape, IGNORE_CASE
