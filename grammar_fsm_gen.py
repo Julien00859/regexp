@@ -3,51 +3,107 @@
 import logging
 import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from itertools import zip_longest
-from string import ascii_uppercase
 from operator import itemgetter
 from io import StringIO
+import regexp
 
 
 logger = logging.getLogger("regexp")
 logger.addHandler(logging.NullHandler())
 
+termre = regexp.compile(r"[A-Z_][A-Z0-9_]*")
+nontermre = regexp.compile(r"[a-z_][a-z0-9_]*")
+stringre = regexp.compile(r'".*"(i|ε)')
+patternre = regexp.compile(r"/.*/(i|ε)")
 
-class Line(tuple):
-    """
-    A Line is a immuable instanciation of a grammar rule at a precise
-    point. A point is where the current parsing stands within the rule.
 
-    A symbol is either a terminal (a character) or a non-terminal (a rule_no)
-    """
-    __slots__ = []
-    def __new__(cls, rule_no, rule, index):
-        assert index <= len(rule)
-        return tuple.__new__(cls, (rule_no, rule, index))
-
-    rule_no = property(itemgetter(0))
-    rule = property(itemgetter(1))
-    index = property(itemgetter(2))
+@dataclass(frozen=True)
+class Line:
+    rule_no: str
+    rule: tuple
+    index: int
 
     @property
-    def point_terminal(self):
-        return not self.point_end and self.rule[self.index] not in ascii_uppercase
+    def point_term(self):
+        return not self.point_end and termre.match(self.rule[self.index])
 
     @property
     def point_non_terminal(self):
-        return not self.point_end and self.rule[self.index] in ascii_uppercase
+        return not self.point_end and nontermre.match(self.rule[self.index])
 
     @property
     def point_end(self):
-        return self.index == len(self.rule)
+        return self.index >= len(self.rule)
 
     def point(self, symbol):
         return not self.point_end and self.rule[self.index] == symbol
 
+    def shift(self):
+        return type(self)(self.rule_no, self.rule, self.index + 1)
+
     def __str__(self):
-        dotted_rule = list(self.rule)
-        dotted_rule[self.index:self.index] = '⋅'
-        return f"{self.rule_no} → {''.join(dotted_rule)}"
+        l = list(self.rule)
+        l.insert(self.index, "⋅")
+        return self.rule_no + ": " + " ".join(l)
+    
+
+def load_grammar(file):
+    terminals = {}
+    rules = defaultdict(list)
+
+    with open(file, "r") as fd:
+        for line in fd:
+            try:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                lhs, rhs = line.split(":")
+                lhs = lhs.strip()
+                rhs = rhs.strip()
+
+                try:
+                    lhs.encode('ascii')
+                except UnicodeEncodeError as e:
+                    raise SyntaxError from e
+
+                if termre.match(lhs):
+                    if stringre.match(rhs):
+                        string, _, flags = rhs[1:].rpartition('"')
+                        pattern = regexp.escape(string)
+                    elif patternre.match(rhs):
+                        pattern, _, flags = rhs[1:].rpartition("/")
+                    else:
+                        raise SyntaxError(rhs)
+
+                    flags = set(flags)
+                    terminals[lhs] = regexp.compile(
+                        pattern,
+                        regexp.IGNORE_CASE if "i" in flags else 0
+                    )
+
+                elif nontermre.match(lhs):
+                    try:
+                        rhs.encode('ascii')
+                    except UnicodeEncodeError as e:
+                        raise SyntaxError from e
+
+                    for rule in rhs.split("|"):
+                        tokens = tuple(rule.strip().split())
+                        for token in tokens:
+                            if not termre.match(token) and not nontermre.match(token):
+                                raise SyntaxError(token)
+                        rules[lhs].append(tokens)
+                    
+                else:
+                    raise SyntaxError(lhs)
+            except Exception:
+                print(line)
+                raise
+
+    return terminals, rules, next(iter(rules.keys()))
 
 
 class Table:
@@ -68,18 +124,17 @@ class Table:
             type(self), type(self), self.init.__name__)
 
     @classmethod
-    def init(cls, grammar, init_lines):
+    def init(cls, fsm, rules, init_lines):
         logger.disabled = True
         self = cls()
         logger.disabled = False
-        self.grammar = grammar
-        self.lines = self._complete(grammar.rules, init_lines)
+        self.lines = self._complete(rules, init_lines)
 
         # Reuse existing instances if found
-        if flyweight := self.grammar.fsm.get(hash(self)):
+        if flyweight := fsm.get(hash(self)):
             return flyweight
         else:
-            self.grammar.fsm[hash(self)] = self
+            fsm[hash(self)] = self
 
         # Handy unique id
         self.id = cls.count
@@ -90,6 +145,9 @@ class Table:
         self.back_links = defaultdict(set)  # one symbol from many tables
 
         return self
+
+    def __repr__(self):
+        return f"T{self.id}"
 
     def __hash__(self):
         return hash(self.lines)
@@ -115,7 +173,10 @@ class Table:
             for line in next_lines:
                 if line.point_non_terminal:
                     rule_no = line.rule[line.index]
-                    new_lines.update(rules[rule_no])
+                    new_lines.update({
+                        Line(rule_no, rule, 0)
+                        for rule in rules[rule_no]
+                    })
 
             new_lines.difference_update(known_lines)
             known_lines.update(new_lines)
@@ -149,84 +210,88 @@ class Table:
             return buffer.getvalue()
 
 
-class Grammar:
-    def __init__(self, rules):
-        start = next(iter(rules))
-        if (len(rules[start]) == 1
-            and len(next(iter(rules[start])).rule) != 1):
-            self.rules = rules
-        else:
-            logger.warning("The grammar doesn't seem to be completed, doing it myself.")
-            if start + "'" in rules:
-                raise SyntaxError("Cannot complete the grammar as rule {start}' exists already.")
-            self.rules = {start + "'": Line(start + "'", start, 0)}
-            self.rules.update(rules)
-        self.fsm = {}  # handy to keep tracks of all tables
-                       # in the FSM related to this grammar
 
-    @classmethod
-    def from_file(cls, filepath):
-        rules = defaultdict(set)
-        with open(filepath) as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                if not line[0].isupper():
-                    continue
+def build_fsm(rules, start):
+    """
+    Compute the grammar FSM by discovering every table through
+    symbol transition, complete the internal fsm structure.
+    """
+    fsm = {}
 
-                rule_no, rule = line.split(" := ")
-                rule = rule.replace(" ", "").replace("ε", "")
-                line = Line(rule_no, rule, 0)
-                rules[rule_no].add(line)
+    def read(table, symbol):
+        next_init = set()
+        for line in table.lines:
+            if line.point(symbol):
+                next_init.add(line.shift())
 
-        return cls(rules)
+        next_table = Table.init(fsm, rules, next_init)
+        table.forward_links[symbol] = next_table
+        next_table.back_links[symbol].add(table)
 
-    def compute_fsm(self):
-        """
-        Compute the grammar FSM by discovering every table through
-        symbol transition, complete the internal fsm structure.
-        """
-        def read(table, symbol):
-            next_init = set()
-            for line in table.lines:
-                if line.point(symbol):
-                    new_line = Line(line.rule_no, line.rule, line.index + 1)
-                    next_init.add(new_line)
+    Table.init(fsm, rules, {start})
+    new_tb = set(fsm.keys())
+    while new_tb:
+        known_tb = set(fsm.keys())
+        for table in map(fsm.get, new_tb):
+            for symbol in table.get_symbols():
+                read(table, symbol)
+        new_tb = set(fsm.keys()) - known_tb
 
-            next_table = Table.init(self, next_init)
-            table.forward_links[symbol] = next_table
-            next_table.back_links[symbol].add(table)
-
-        Table.init(self, {next(iter(self.rules.values()))})
-        new_tb = set(self.fsm.keys())
-        while new_tb:
-            known_tb = set(self.fsm.keys())
-            for table in map(self.fsm.get, new_tb):
-                for symbol in table.get_symbols():
-                    read(table, symbol)
-            new_tb = set(self.fsm.keys()) - known_tb
+    return list(fsm.values())
     
+
+def lr_derivation(tables):
+    # (pop, read, push)
+    transitions = []
+
+    # shifts
+    for table in tables:
+        for token, next_table in table.forward_links.items():
+            if termre.match(token):
+                transitions.append(((table.id,), token, (table.id, next_table.id)))
+
+    def reduce(tables, rule, index):
+        if index >= 0:
+            for prev_table in tables[0].back_links[rule[index]]:
+                yield from reduce((prev_table, *tables), rule, index - 1)
+        else:
+            yield tables
+
+    # reduces
+    for table in tables:
+        for line in table.lines:
+            if line.point_end and line.rule_no != "s":
+                for combo in reduce((table,), line.rule, line.index - 1):
+                    transitions.append((tuple([tb.id for tb in combo]), "", (combo[0].id, combo[0].forward_links[line.rule_no].id)))
+                
+    return transitions
+
+
 
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: python3.8 %s <BNF file>" % __file__)
 
-    g = Grammar.from_file(sys.argv[1])
-    g.compute_fsm()
+    terminals, rules, entryrule = load_grammar(sys.argv[1])
+    rules["s"] = [entryrule]
+    nodes = build_fsm(rules, Line("s", (entryrule,), 0))
 
-    if len(g.fsm) < 4:
-        for tb in g.fsm.values():
-            print(tb)
-        sys.exit()
-
-    it = iter(sorted(list(map(str, g.fsm.values())), key=len))
-    for a, b, c, d in zip(it, it, it, it):
-        filla, fillb, fillc, filld = [" " * x.index("\n") for x in [a, b, c, d]]
-        for aa, bb, cc, dd in zip_longest(*[x.splitlines(keepends=False) for x in [a, b, c, d]]):
-            print(aa or filla, bb or fillb, cc or fillc, dd or filld)
+    it = iter(sorted(list(map(str, nodes)), key=len))
+    for a, b, c in zip_longest(it, it, it):
+        filla, fillb, fillc = [" " * x.index("\n") if x else "" for x in [a, b, c]]
+        for aa, bb, cc in zip_longest(*[x.splitlines(keepends=False) if x else "" for x in [a, b, c]]):
+            print(aa or filla, bb or fillb, cc or fillc)
         print()
         print()
+
+    for left in it:
+        print(left)
+
+    from pprint import pprint
+    pprint(lr_derivation(nodes))
 
 if __name__ == '__main__':
     main()
+
+
+# aΣ(ε|a)(ε|a)abca|ba*Σ*a|b*(a|b)*(ab)*ab|cd(a|b)(c|d)a(b(c(d)))aa
