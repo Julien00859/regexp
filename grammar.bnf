@@ -1,58 +1,77 @@
-S := R
 
-R := ( R )
-R := R [ B ]
-R := R { Q }
-R := R | R
-R := R \ e
-R := R *
-R := R ?
-R := R +
-R := R .
-R := R Σ
-R := ε
 
-B := ^ O
-B := O
+OR: "or"i
+AND: "and"i
+NOT_: "not"i
 
-O := O \ e
-O := O Σ - Σ
-O := O Σ
-O := ε
+EQ: "=="
+NE: "!="
+LT: "<"
+LE: "<="
+GT: ">"
+GE: ">="
 
-n := [1-9]
-d := [0-9]
+OR_: "|"
+XOR: "^"
+AND_: "&"
+LSHIFT: "<<"
+RSHIFT: ">>"
+INVERT: "~"
 
-Q := N
-Q := , N
-Q := N ,
-Q := N , N
+POS: "+"
+NEG: "-"
+ADD: "+"
+SUB: "-"
+MUL: "*"
+FLOORDIV: "/"
+MOD: "%"
+POW: "**"
 
-N := n D
-D := d D
-D := ε
+TRUE: "true"i
+FALSE: "false"i
 
-e := d
-e := D
-e := s
-e := S
-e := w
-e := W
-e := (
-e := )
-e := [
-e := ]
-e := {
-e := }
-e := |
-e := \
-e := *
-e := ?
-e := +
-e := .
-e := -
-e := $
-e := r
-e := n
-e := t
-e := 0
+HEX_DIGIT: /[0-9a-f][0-9a-f]*/i
+DEC_DIGIT: /[0-9][0-9]*/
+OCT_DIGIT: /[0-7][0-7]*/
+BIN_DIGIT: /[01][01]*/
+
+HEX: "0x"i
+OCT: "0o"i
+BIN: "0b"i
+
+expression: logical_or
+
+logical_or: logical_or OR logical_and | logical_and
+logical_and: logical_and AND | logical_not
+logical_not: NOT_ logical_not | comparison
+
+comparison: comparison compop bitwise_or | bitwise_or
+
+bitwise_or: bitwise_or OR_ bitwise_xor | bitwise_xor
+bitwise_xor: bitwise_xor XOR bitwise_and | bitwise_and
+bitwise_and: bitwise_and AND_ bitwise_shift | bitwise_shift
+bitwise_shift: bitwise_shift shiftop bitwise_neg | bitwise_neg
+bitwise_neg: INVERT bitwise_neg | arith_sign
+
+arith_sign: signop arith_sign | arith_term
+arith_term: arith_term termop arith_fact | arith_fact
+arith_fact: arith_fact factop arith_power | arith_power
+arith_power: arith_power POW parenthesis | parenthesis
+
+compop: EQ | NE | LT | LE | GT | GE
+shiftop: LSHIFT | RSHIFT
+signop: POS | NEG
+termop: ADD | SUB
+factop: MUL | FLOORDIV | MOD
+
+parenthesis: LPAR expression RPAR | value
+value: number | boolean
+
+number: hex_number | dec_number | oct_number | bin_number
+hex_number: HEX HEX_DIGITS
+dec_number: DEC_DIGITS
+oct_number: OCT OCT_DIGITS
+bin_number: BIN BIN_DIGITS
+
+boolean: TRUE | FALSE
+
