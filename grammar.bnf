@@ -28,14 +28,10 @@ POW: "**"
 TRUE: "true"i
 FALSE: "false"i
 
-HEX_DIGITS: /[0-9a-f][0-9a-f]*/i
-DEC_DIGITS: /[0-9][0-9]*/
-OCT_DIGITS: /[0-7][0-7]*/
-BIN_DIGITS: /[01][01]*/
-
-HEX: "0x"i
-OCT: "0o"i
-BIN: "0b"i
+HEX: /0x[0-9a-f][0-9a-f]*/i
+DEC: /[0-9][0-9]*/
+OCT: /0o[0-7][0-7]*/
+BIN: /0b[01][01]*/
 
 LPAR: "("
 RPAR: ")"
@@ -70,10 +66,10 @@ parenthesis: LPAR expression RPAR | value
 value: number | boolean
 
 number: hex_number | dec_number | oct_number | bin_number
-hex_number: HEX HEX_DIGITS
-dec_number: DEC_DIGITS
-oct_number: OCT OCT_DIGITS
-bin_number: BIN BIN_DIGITS
+hex_number: HEX
+dec_number: DEC
+oct_number: OCT
+bin_number: BIN
 
 boolean: TRUE | FALSE
 

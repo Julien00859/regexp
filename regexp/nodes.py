@@ -29,6 +29,9 @@ class Node:
     def read(self, char: str) -> Any:
         raise NotImplementedError("abstract method")
 
+    def can_read(self, char):
+        return bool(self.transitions.get(char) or self.transitions.get(SIGMA))
+
     def add(self, char: Character, node: "Node") -> None:
         raise NotImplementedError("abstract method")
 
@@ -56,7 +59,7 @@ class NDN(Node):
         self.transitions = defaultdict(set)
 
     def read(self, char: str) -> Set[Node]:
-        return self.transitions.get(char, set())
+        return self.transitions.get(char, self.transitions.get(SIGMA, set()))
 
     def add(self, char: Character, node: Node) -> None:
         self.transitions[char].add(node)
@@ -83,6 +86,10 @@ class DN(Node):
     def add(self, char: Character, node: Node) -> None:
         if char == "":
             raise ValueError("Cannot have empty transition.")
+        if self.transitions.get(char, node) != node:
+            from pprint import pprint
+            pprint((self.transitions, char, node))
+            raise ValueError("Cannot have same char pointing different nodes")
         self.transitions[char] = node
 
     def print_transitions(self) -> None:

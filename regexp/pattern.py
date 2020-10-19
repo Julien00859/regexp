@@ -83,13 +83,13 @@ def parse(pattern: str, flags: int) -> NDN:
 
                 escape = False
 
+            elif char == "\\":
+                escape = True
+
             elif char == "*" and skip:
                 skip = False
             elif char == "*":
                 raise ParsingError("Invalid Kleene", pattern, index)
-
-            elif char == "\\":
-                escape = True
 
             elif char == "(":
                 sub_end = NDN()
@@ -207,7 +207,7 @@ def expand(extended_pattern: str) -> str:
                 expansion.append(escape(char))
         elif escape_:
             escape_ = False
-            expanded_pattern.append(escape(char))
+            expanded_pattern.append(char)
         elif char == "\\":
             expansion = _tokens.get(next_char)
             if expansion:

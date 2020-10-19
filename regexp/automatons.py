@@ -84,7 +84,9 @@ class FA:
             print(line)
 
     def __str__(self):
-        return "<{} {} on {}>".format(self.__class__.__name__, self.id, self.initial_node)
+        return "<{} on {!r}>".format(self.__class__.__name__, self.initial_node)
+
+    __repr__ = __str__
 
 class NFA(FA):
     """
@@ -175,7 +177,7 @@ class DFA(FA):
 
         for letter in string:
             node = node.read(letter)
-            if node is self._dead_node:
+            if node in [trap_node, None]:
                 break
             length += 1
             if node.is_final:

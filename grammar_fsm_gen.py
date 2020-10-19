@@ -1,13 +1,16 @@
+#
 #!/usr/bin/env python3
 
 import logging
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import zip_longest
+from itertools import zip_longest, tee
 from operator import itemgetter
 from io import StringIO
 import regexp
+import regexp.automatons
+import regexp.nodes
 
 
 logger = logging.getLogger("regexp")
@@ -270,36 +273,148 @@ def lr_derivation(tables):
     return transitions
 
 
+def pprint_nodes(nodes, width=3):
+    it = iter(list(map(str, nodes)))
+    if width == 3:
+        for a, b, c in zip_longest(it, it, it):
+            filla, fillb, fillc = [" " * x.index("\n") if x else "" for x in [a, b, c]]
+            for aa, bb, cc in zip_longest(*[x.splitlines(keepends=False) if x else "" for x in [a, b, c]]):
+                print(aa or filla, bb or fillb, cc or fillc)
+            print()
+            print()
+
+    if width == 4:
+        for a, b, c, d in zip_longest(it, it, it, it):
+            filla, fillb, fillc, filld = [" " * x.index("\n") if x else "" for x in [a, b, c, d]]
+            for aa, bb, cc, dd in zip_longest(*[x.splitlines(keepends=False) if x else "" for x in [a, b, c, d]]):
+                print(aa or filla, bb or fillb, cc or fillc, dd or filld)
+            print()
+            print()
+
+    for left in it:
+        print(left)
+        
+
+def enhance_dca(terminals, nodes):
+    class PeekDFA(regexp.automatons.DFA):
+        @classmethod
+        def from_DCA(cls, dca, next_nodes):
+            self = cls(dca.initial_node)
+            self.next_nodes = next_nodes
+
+        def read_greedy(self, string):
+            node = self.initial_node
+            s1, s2 = tee(string)
+            next(s2)
+            for charno, (char, peek) in enumerate(zip_longest(s1, s2)):
+                node = node.read(char)
+                if node in (None, regexp.nodes._trap_node):
+                    return 0
+                if node.is_final and (peek is None or any(nxt.can_read(peek) for nxt in self.next_nodes)):
+                    return charno + 1
+
+        def match(self, string):
+            return bool(self.read(string))
+
+    helpme = defaultdict(list)
+    for table in nodes:
+        for token, next_table in table.forward_links.items():
+            if termre.match(token):
+                for next_token in next_table.forward_links:
+                    if termre.match(next_token):
+                        helpme[token].append(terminals[next_token].initial_node)
+
+    for term, dcmfa in tuple(terminals.items()):
+        terminals[term] = PeekDFA.from_DCA(dcmfa, next_nodes=helpme[term])
+
+def ensure_lr0(lr0):
+    for i in range(len(lr0)):
+        popi, chari, _ = lr0[i]
+        for j in range(len(lr0)):
+            if i == j:
+                continue
+
+            popj, charj, _ = lr0[j]
+            if popi == popj[-len(popi):] and not (chari and charj):
+                if chari or charj:
+                    err = "Shift-reduce"
+                else:
+                    err = "Reduce-reduce"
+                raise SyntaxError(f"{err} conflict {lr0[i]} vs {lr0[j]}")
 
 def main():
     from pprint import pprint
-    if len(sys.argv) < 2:
-        sys.exit("usage: python3.8 %s <BNF file>" % __file__)
+    #if len(sys.argv) < 2:
+    #    sys.exit("usage: python3.8 %s <BNF file>" % __file__)
 
+    file = r"\\wsl$\Debian\home\julien\regexp\grammar.bnf"
+    terminals, rules, entryrule = load_grammar(file)
+
+    #terminals, rules, entryrule = load_grammar(sys.argv[1])
     global globalrules
-    terminals, rules, entryrule = load_grammar(sys.argv[1])
     globalrules = rules
     rules["s"] = [entryrule]
     nodes = build_fsm(rules, Line("s", (entryrule,), 0))
 
-    pprint(terminals)
-    pprint(rules)
+    pprint(terminals, compact=True, width=120)
+    pprint(rules, compact=True, width=120)
+    pprint_nodes(nodes)
 
-    it = iter(list(map(str, nodes)))
-    for a, b, c in zip_longest(it, it, it):
-        filla, fillb, fillc = [" " * x.index("\n") if x else "" for x in [a, b, c]]
-        for aa, bb, cc in zip_longest(*[x.splitlines(keepends=False) if x else "" for x in [a, b, c]]):
-            print(aa or filla, bb or fillb, cc or fillc)
-        print()
-        print()
+    lr0 = lr_derivation(nodes)
+    pprint(lr0, compact=True, width=120)
 
-    for left in it:
-        print(left)
+    try:
+        ensure_lr0(lr0)
+    except SyntaxError as exc:
+        logger.warning(exc)
+        enhance_dca(terminals, nodes)
 
-    pprint(lr_derivation(nodes))
+
+
+    txt = input()
+    for (token, word) in lexer(terminals, txt):
+        print(token, word)
+                        
+
+
+def lexer(terminals, inputstr):
+    from regexp import nodes
+
+    autoterm = {auto.id: term for term, auto in terminals.items()}
+    entrynode = nodes.NDN(False)
+    for auto in terminals.values():
+        for char, node in auto.initial_node.transitions.items():
+            entrynode.add(char, node)
+
+    n = 0
+    while n <= len(inputstr):
+        nodes = entrynode.read(inputstr[n])
+        for node in nodes:
+            if (length := terminals[term].read_greedy(inputstr[n:])):
+                break
+        else:
+            raise SyntaxError()
+
+        yield term, inputstr[n:n+length]
+        n += length
+
+
+
+
+
 
 if __name__ == '__main__':
-    main()
+    import contextlib
+    import codecs
+
+    with codecs.open("lol", "w", "utf-8") as fd:
+        with contextlib.redirect_stdout(fd):
+            main()
+    #main()
 
 
-# aΣ(ε|a)(ε|a)abca|ba*Σ*a|b*(a|b)*(ab)*ab|cd(a|b)(c|d)a(b(c(d)))aa
+
+# ~(-15 * 0b1001 + 0xff) < 0o7 or True
+# True
+
+
